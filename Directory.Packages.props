@@ -24,7 +24,7 @@
     />
     <GlobalPackageReference
       Include="Meziantou.Analyzer"
-      Version="3.0.200"
+      Version="3.0.217"
       PrivateAssets="all"
       IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive"
     />
