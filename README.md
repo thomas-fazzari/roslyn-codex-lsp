@@ -1,7 +1,8 @@
 # Roslyn Codex LSP
 
+[![CI](https://img.shields.io/github/actions/workflow/status/thomas-fazzari/roslyn-codex-lsp/ci.yml?branch=master&label=CI)](https://github.com/thomas-fazzari/roslyn-codex-lsp/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/v/release/thomas-fazzari/roslyn-codex-lsp)](https://github.com/thomas-fazzari/roslyn-codex-lsp/releases/latest)
 [![Documentation](https://img.shields.io/badge/docs-VitePress-646CFF?logo=vitepress&logoColor=white)](https://thomas-fazzari.github.io/roslyn-codex-lsp/)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/github/license/thomas-fazzari/roslyn-codex-lsp)](LICENSE)
 
 C# diagnostics, navigation and refactoring in Codex, backed by the official Roslyn language server through the Model Context Protocol (MCP).
