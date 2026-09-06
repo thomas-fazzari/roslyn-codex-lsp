@@ -145,7 +145,6 @@ try {
     $mcpArguments = @('mcp', 'add', 'roslyn')
     if ($installRoslyn) {
         $serverDirectory = Join-Path $InstallDir 'roslyn'
-        $Server = Join-Path $serverDirectory 'roslyn-language-server.exe'
         Write-Host '📦 Installing the Roslyn language server...'
         Push-Location $temporaryDirectory
         try {
@@ -154,6 +153,14 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'The Roslyn language server installation failed.' }
         }
         finally { Pop-Location }
+        # The .NET tool launcher is a .cmd file
+        # The bridge needs the packaged executable
+        $serverExecutables = @(Get-ChildItem (Join-Path $serverDirectory '.store') `
+            -Recurse -File -Filter 'roslyn-language-server.exe')
+        if ($serverExecutables.Count -ne 1) {
+            throw 'Expected one Roslyn executable in the installed tool package.'
+        }
+        $Server = $serverExecutables[0].FullName
         $mcpArguments += @('--env', "PATH=$dotnetDirectory;$serverDirectory;$env:PATH", '--env', "DOTNET_ROOT=$dotnetDirectory")
     }
 

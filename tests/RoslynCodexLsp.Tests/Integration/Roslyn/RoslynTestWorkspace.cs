@@ -16,6 +16,7 @@ namespace RoslynCodexLsp.Tests.Integration.Roslyn;
 /// <remarks>
 /// Set ROSLYN_CODEX_TEST_EXECUTABLE to an absolute executable path to test a published bridge.
 /// Otherwise, the fixture launches the built assembly with dotnet.
+/// Set ROSLYN_CODEX_TEST_SERVER to select an installed Roslyn server by its executable path.
 /// </remarks>
 internal sealed class RoslynTestWorkspace : IAsyncDisposable
 {
@@ -193,6 +194,13 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         if (executable is null)
         {
             _process.StartInfo.ArgumentList.Insert(0, typeof(LspTool).Assembly.Location);
+        }
+
+        var server = Environment.GetEnvironmentVariable("ROSLYN_CODEX_TEST_SERVER");
+        if (!string.IsNullOrWhiteSpace(server))
+        {
+            _process.StartInfo.ArgumentList.Add(BridgeOptions.ServerArgument);
+            _process.StartInfo.ArgumentList.Add(server);
         }
 
         _process.Start().Should().BeTrue();
