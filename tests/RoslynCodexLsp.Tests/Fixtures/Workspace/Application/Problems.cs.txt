@@ -1,0 +1,8 @@
+namespace Sample.Application;
+
+public static class Problems
+{
+    public static List<string> MissingUsing() => [];
+
+    public static string NullableWarning(string? text) => text;
+}

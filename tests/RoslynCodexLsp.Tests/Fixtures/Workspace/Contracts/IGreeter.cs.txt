@@ -1,0 +1,6 @@
+namespace Sample.Contracts;
+
+public interface IGreeter
+{
+    string Greet(string name);
+}

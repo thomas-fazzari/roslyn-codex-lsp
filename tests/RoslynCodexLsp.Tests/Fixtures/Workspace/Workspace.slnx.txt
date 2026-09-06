@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Contracts/Contracts.csproj" />
+  <Project Path="Application/Application.csproj" />
+</Solution>

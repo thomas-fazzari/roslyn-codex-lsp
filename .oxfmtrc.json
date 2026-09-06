@@ -1,0 +1,12 @@
+{
+  "ignorePatterns": [
+    "**/bin/**",
+    "**/obj/**",
+    "artifacts/**",
+    "bun.lock",
+    "node_modules/**",
+    "docs/.vitepress/cache/**",
+    "docs/.vitepress/dist/**",
+    "research/**"
+  ]
+}

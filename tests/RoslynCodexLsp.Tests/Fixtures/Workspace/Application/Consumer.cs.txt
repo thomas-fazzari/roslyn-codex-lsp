@@ -1,0 +1,8 @@
+using Sample.Contracts;
+
+namespace Sample.Application;
+
+public static class Consumer
+{
+    public static string Run(IGreeter greeter) => greeter.Greet("world");
+}

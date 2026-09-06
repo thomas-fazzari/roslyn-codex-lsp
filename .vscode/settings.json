@@ -1,0 +1,31 @@
+{
+  "csharp.debug.justMyCode": false,
+  "dotnet.defaultSolution": "RoslynCodexLsp.slnx",
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "oxc.useExecPath": true,
+  "oxc.path.oxfmt": "node_modules/oxfmt/bin/oxfmt",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "files.associations": {
+    "bun.lock": "plaintext",
+    "*.csproj": "xml",
+    "*.props": "xml",
+    "*.slnx": "xml"
+  },
+  "files.exclude": {
+    "**/artifacts": true,
+    "**/bin": true,
+    "**/node_modules": true,
+    "**/obj": true,
+    "**/TestResults": true
+  },
+  "[csharp][xml]": {
+    "editor.defaultFormatter": "csharpier.csharpier-vscode"
+  },
+  "[javascript][markdown][json][jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on"
+  }
+}

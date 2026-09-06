@@ -1,0 +1,6 @@
+namespace Sample.Application;
+
+public static class OtherGreeter
+{
+    public static string Greet(string name) => name;
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>roslyn-codex-lsp</ToolCommandName>
+    <Description>Roslyn language server tools for Codex through MCP.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RoslynCodexLsp.Tests" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="StreamJsonRpc" />
+  </ItemGroup>
+</Project>

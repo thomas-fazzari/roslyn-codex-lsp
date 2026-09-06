@@ -1,0 +1,16 @@
+{
+  "config": {
+    "extends": "./node_modules/markdownlint/style/prettier.json",
+    "MD024": {
+      "siblings_only": true,
+    },
+  },
+  "globs": ["README.md", "AGENTS.md", "docs/**/*.md", "skills/**/*.md"],
+  "ignores": [
+    "**/LICENSE",
+    "**/node_modules/**",
+    "docs/.vitepress/cache/**",
+    "docs/.vitepress/dist/**",
+  ],
+  "fix": false,
+}

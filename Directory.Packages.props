@@ -1,0 +1,32 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.11" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageVersion Include="StreamJsonRpc" Version="2.25.29" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Analyzers">
+    <GlobalPackageReference
+      Include="Roslynator.Analyzers"
+      Version="5.0.0"
+      PrivateAssets="all"
+      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive"
+    />
+    <GlobalPackageReference
+      Include="Meziantou.Analyzer"
+      Version="3.0.200"
+      PrivateAssets="all"
+      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive"
+    />
+  </ItemGroup>
+</Project>

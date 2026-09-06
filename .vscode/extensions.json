@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "DavidAnson.vscode-markdownlint",
+    "csharpier.csharpier-vscode",
+    "EditorConfig.EditorConfig",
+    "vscode.json-language-features",
+    "oxc.oxc-vscode"
+  ]
+}

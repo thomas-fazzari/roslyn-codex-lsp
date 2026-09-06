@@ -1,0 +1,23 @@
+{
+  "name": "roslyn-codex-lsp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev docs --host 127.0.0.1 --port 5174 --strictPort",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs --host 127.0.0.1 --port 5174",
+    "docs:lint": "markdownlint-cli2",
+    "docs:format": "oxfmt --write README.md AGENTS.md \"docs/**/*.md\" \"skills/**/*.md\"",
+    "docs:format:check": "oxfmt --check README.md AGENTS.md \"docs/**/*.md\" \"skills/**/*.md\"",
+    "tooling:format": "oxfmt --write package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .vscode eng docs/.vitepress/config.mjs",
+    "tooling:format:check": "oxfmt --check package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .vscode eng docs/.vitepress/config.mjs"
+  },
+  "devDependencies": {
+    "lint-staged": "17.5.0",
+    "markdownlint": "0.41.1",
+    "markdownlint-cli2": "0.23.2",
+    "oxfmt": "0.66.0",
+    "vitepress": "1.6.4"
+  },
+  "packageManager": "bun@1.4.0"
+}

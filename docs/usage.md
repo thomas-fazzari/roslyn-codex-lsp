@@ -1,0 +1,78 @@
+# Usage
+
+Ask Codex to use the `roslyn` Model Context Protocol (MCP) server. It exposes one tool: `lsp`.
+
+Example usage:
+
+```text
+Use Roslyn to report diagnostics for src/Calculator.cs, find its implementations,
+and preview a rename. Do not apply changes.
+```
+
+The bridge reads saved files and loads the project independently of your editor.
+Available fixes and refactorings depend on the installed Roslyn version and project.
+
+## Operations
+
+| Action                                                                   | Inputs                                 | Result                                               |
+| ------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------------------------- |
+| `diagnostics`                                                            | `file` path or glob                    | Errors, warnings and suggestions                     |
+| `definition`, `type_definition`, `implementation`, `references`, `hover` | `file`, `line`, `character`            | Locations or symbol information                      |
+| `symbols`                                                                | `file` or `query`                      | Document or workspace symbols                        |
+| `rename`                                                                 | `file`, `line`, `character`, `newName` | Symbol rename preview                                |
+| `rename_file`                                                            | `file`, `newName`                      | File rename preview, if supported                    |
+| `code_actions`                                                           | `file`, `line`, `character`            | Fixes and refactorings                               |
+| `status`, `capabilities`, `reload`                                       | None                                   | Session state, supported features or a fresh session |
+| `request`                                                                | `method`, `parameters`                 | Raw Language Server Protocol (LSP) result            |
+
+Pass arguments inside `request`:
+
+```json
+{
+  "request": {
+    "action": "definition",
+    "file": "src/Calculator.cs",
+    "line": 12,
+    "character": 9
+  }
+}
+```
+
+Paths are relative to the workspace. Input coordinates start at **1**, with characters counted as UTF-16 code units.
+Returned LSP locations and raw request coordinates start at **0**.
+
+For diagnostics, omit `file` to scan C# files or use a glob such as `src/**/*.cs`.
+`limit` defaults to 100 and accepts 1 to 1000. Narrow the query if results are truncated or too large.
+
+## Preview and apply
+
+Renames return an edit preview and a `proposalId`. Apply that preview with the same action:
+
+```json
+{
+  "request": {
+    "action": "rename",
+    "proposalId": "id-from-preview",
+    "apply": true
+  }
+}
+```
+
+For code actions, request the listing, then send its `proposalId` and zero-based `actionIndex` to resolve a preview.
+Apply the preview with its new `proposalId`. Set `endLine` and `endCharacter` when an action needs a selection.
+Some Roslyn commands reveal their edits only when executed.
+
+Proposals expire after five minutes. If source files change, `stale_edit` requires a new preview.
+Reloading also discards proposals. Applied file creation, deletion and renaming reload Roslyn before the next request.
+
+## Limits
+
+Edits must stay inside the workspace. Symbolic links below its root are rejected.
+Each file replacement is atomic, but a failed operation across several files can leave partial changes.
+
+Diagnostics scans cover at most 1000 files. An edit can affect up to 256 files, with 8 MiB per file and 64 MiB in total.
+The source snapshot used to validate edits is limited to 256 MiB.
+
+Raw requests reserve lifecycle and document synchronization methods for the bridge.
+Unknown methods and `workspace/executeCommand` require `apply: true` because they may write files.
+Use `reload` if results remain stale after an external change.
