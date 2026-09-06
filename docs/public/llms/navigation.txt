@@ -1,0 +1,34 @@
+SYMBOL NAVIGATION
+=================
+
+Select a position inside the symbol. file is workspace-relative.
+line and character are one-based. character counts UTF-16 code units.
+
+Definition:
+{"request":{"action":"definition","file":"src/Calculator.cs","line":12,"character":9}}
+
+Replace action with:
+type_definition - Find the symbol's type definition.
+implementation - Find implementations of an interface or abstract member.
+references - Find references, including the declaration.
+hover - Read type information and documentation.
+
+SYMBOL SEARCH
+-------------
+Document symbols:
+{"request":{"action":"symbols","file":"src/Calculator.cs"}}
+
+Workspace symbols:
+{"request":{"action":"symbols","query":"Calculator","limit":50}}
+
+For workspace search, omit file. When file is present, query is not used.
+Use symbols to locate a declaration, then navigation for semantic relationships.
+
+RESULTS
+-------
+Results preserve Roslyn's LSP shapes, which may contain locations, location links,
+symbol arrays or hover content. Read URI and range fields from the actual result.
+Returned positions are zero-based. Convert them before another positional call.
+limit defaults to 100 and accepts 1 through 1000. Inspect truncation indicators
+before claiming a complete reference or implementation list.
+An empty result means Roslyn returned no matches for this request.

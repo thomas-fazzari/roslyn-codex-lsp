@@ -1,0 +1,35 @@
+DIAGNOSTICS
+===========
+
+Read errors, warnings and analyzer suggestions from saved C# files.
+Start with the files affected by the task.
+
+One file:
+{"request":{"action":"diagnostics","file":"src/Calculator.cs"}}
+
+Matching files:
+{"request":{"action":"diagnostics","file":"src/**/*.cs","limit":200}}
+
+All selected C# files in the workspace:
+{"request":{"action":"diagnostics"}}
+
+RESULT
+------
+result.files: entries containing file and diagnostics.
+result.complete: whether the report is complete.
+result.total: diagnostic count before the output limit.
+result.truncated: whether diagnostics were omitted from the returned arrays.
+
+Diagnostic ranges use zero-based LSP positions. Severity values are:
+1 = error, 2 = warning, 3 = information, 4 = hint.
+Use diagnostic codes, messages and ranges to select the next operation.
+Convert the start line and character to one-based values for code_actions.
+
+LIMITS AND VERIFICATION
+-----------------------
+limit defaults to 100 and accepts 1 through 1000 across the whole response.
+A scan accepts at most 1000 files. Narrow the glob if it exceeds this limit.
+If truncated is true, narrow the file selection or increase limit.
+Do not interpret an empty per-file array as clean when the result is truncated.
+After applying changes, rerun diagnostics on the affected files.
+A clean diagnostic report does not replace tests or validate runtime behavior.

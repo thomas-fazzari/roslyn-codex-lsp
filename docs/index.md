@@ -9,6 +9,8 @@ The bridge connects Codex through the Model Context Protocol (MCP). No editor ex
 
 [Get started](getting-started.md) to connect your project, or see [Usage](usage.md) for the tool reference.
 
+The [agent reference](./llms/index.txt) provides plain-text API guides and JSON examples for diagnostics, navigation and edits.
+
 ## Example
 
 Codex inspects diagnostics, previews a rename and a fix, then applies the selected rename.

@@ -4,12 +4,16 @@
 
 Prerequisites: .NET SDK 10.0.400, Codex CLI, Bash, curl and tar.
 
+The installer compiles the bridge, so users need the SDK too. The bridge and Roslyn run on .NET 10.
+This does not require your C# project to target .NET 10. Keep the SDK and workloads required by that project installed, including any SDK pinned in its `global.json`.
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.sh | bash
 ```
 
 The script builds the bridge, installs the official Roslyn language server and registers `roslyn` globally in Codex.
 It asks for an installation directory and offers a Codex skill for C# diagnostics, navigation and edits before confirming the changes.
+Accept the skill to give Codex guidance on tool arguments and edit proposals.
 Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
 Run the same command to update.
 

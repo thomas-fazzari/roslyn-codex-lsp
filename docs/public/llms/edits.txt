@@ -1,0 +1,53 @@
+SEMANTIC EDITS
+==============
+
+Keep edits within the user's requested scope. A preview-only request does not
+authorize applying changes. Follow an implementation request through its
+authorized edits and validation.
+
+RENAME A SYMBOL
+---------------
+1. Request a preview at a one-based symbol position:
+{"request":{"action":"rename","file":"src/Calculator.cs","line":12,"character":9,"newName":"Compute"}}
+
+2. Read the changed files and edits. Apply the returned proposalId:
+{"request":{"action":"rename","proposalId":"ID_FROM_PREVIEW","apply":true}}
+
+RENAME A FILE
+-------------
+newName is a workspace-relative destination, not a symbol name:
+{"request":{"action":"rename_file","file":"src/Calculator.cs","newName":"src/Math/Calculator.cs"}}
+
+Apply its proposalId with action rename_file and apply true.
+This requires Roslyn to advertise file rename support.
+
+FIXES AND REFACTORINGS
+---------------------
+1. List actions at the diagnostic or selected code:
+{"request":{"action":"code_actions","file":"src/Calculator.cs","line":12,"character":9}}
+
+For a selection, also pass endLine and endCharacter, both one-based.
+Available actions depend on the installed Roslyn version and loaded project.
+
+2. Choose an action from the returned listing. Resolve its preview using the
+listing's proposalId and the action's zero-based index:
+{"request":{"action":"code_actions","proposalId":"ID_FROM_LISTING","actionIndex":0}}
+
+3. Inspect the preview. Apply its NEW proposalId:
+{"request":{"action":"code_actions","proposalId":"ID_FROM_PREVIEW","apply":true}}
+
+Do not reuse the listing ID in place of the resolved preview ID.
+Some command-based actions reveal their edits only during execution.
+
+PROPOSAL LIFETIME AND FAILURES
+------------------------------
+Proposals expire after five minutes. Reload discards them.
+On stale_edit, request a new preview against current files. Do not retry the old ID.
+After applying, inspect the result and rerun diagnostics on affected files.
+File creation, deletion and renaming trigger a Roslyn reload before the next request.
+
+Edits must remain inside the workspace. Symlinks below its root are rejected.
+Each file replacement is atomic. A failed multi-file operation can leave partial
+changes, so inspect the workspace before retrying.
+Limits: 256 edited files, 8 MiB per file, 64 MiB total edited content,
+and 256 MiB for the source snapshot used to detect stale edits.

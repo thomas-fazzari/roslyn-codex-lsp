@@ -14,6 +14,7 @@ The bridge reads saved files and works independently of your editor.
 ## Install
 
 Prerequisites: .NET SDK 10.0.400, Codex CLI, Bash, curl and tar.
+The SDK builds the tool during installation. Your C# project can target a different .NET version.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.sh | bash

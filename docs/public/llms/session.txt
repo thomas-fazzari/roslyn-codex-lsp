@@ -1,0 +1,30 @@
+SESSION AND RAW REQUESTS
+========================
+
+Session status:
+{"request":{"action":"status"}}
+
+Server capabilities:
+{"request":{"action":"capabilities"}}
+
+Use capabilities when support for an operation is uncertain.
+Roslyn loads the project on the first language request.
+
+Reload:
+{"request":{"action":"reload"}}
+
+Reload discards pending proposals. Use it when results remain stale after an
+external change, then issue the original query again.
+
+RAW LSP
+-------
+Prefer named tool actions when they cover the operation.
+For other methods, pass the LSP method and parameters directly:
+{"request":{"action":"request","method":"textDocument/hover","parameters":{"textDocument":{"uri":"file:///absolute/workspace/src/Calculator.cs"},"position":{"line":11,"character":8}}}}
+
+Replace the example URI with the actual document URI.
+Raw LSP positions are zero-based, unlike the named tool actions.
+Lifecycle and document synchronization methods are owned by the bridge.
+workspace/applyEdit is also reserved.
+Unknown methods and workspace/executeCommand require apply true because they
+may write files. Use them only within the user's authorized scope.
