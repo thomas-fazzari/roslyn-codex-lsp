@@ -22,6 +22,10 @@
 !/.config/dotnet-tools.json
 !/.githooks/
 !/.githooks/pre-commit
+!/.github/
+!/.github/dependabot.yml
+!/.github/workflows/
+!/.github/workflows/docs.yml
 !/.vscode/
 !/.vscode/extensions.json
 !/.vscode/settings.json
