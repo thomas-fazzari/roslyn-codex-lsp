@@ -1,9 +1,11 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
 using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Lsp;
 using RoslynCodexLsp.Tools;
@@ -36,7 +38,13 @@ internal static class Program
         builder.Services.AddSingleton<LspQueries>();
         builder.Services.AddSingleton<LspChanges>();
         builder.Services.AddSingleton<LspTool>();
-        builder.Services.AddMcpServer().WithStdioServerTransport().WithTools<LspTool>();
+
+        var jsonOptions = new JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
+        jsonOptions.TypeInfoResolverChain.Insert(0, BridgeJsonContext.Default);
+        builder
+            .Services.AddMcpServer()
+            .WithStdioServerTransport()
+            .WithTools<LspTool>(serializerOptions: jsonOptions);
 
         using var host = builder.Build();
         await host.RunAsync(CancellationToken.None);

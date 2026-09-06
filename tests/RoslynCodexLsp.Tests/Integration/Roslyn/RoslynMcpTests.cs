@@ -20,6 +20,10 @@ namespace RoslynCodexLsp.Tests.Integration.Roslyn;
 /// </code>
 /// The command builds the project. The tests restore their fixtures, launch Roslyn,
 /// and delete their temporary workspaces when finished.
+/// To test a published native bridge, set its absolute executable path:
+/// <code>
+/// ROSLYN_CODEX_TEST_EXECUTABLE=/absolute/path/RoslynCodexLsp make test-integration
+/// </code>
 /// </remarks>
 public sealed class RoslynMcpTests
 {
@@ -39,7 +43,13 @@ public sealed class RoslynMcpTests
         tools.Should().ContainSingle().Which.Name.Should().Be(LspTool.ToolName);
 
         var capabilities = await workspace.CallAsync(
-            new LspRequest { Action = LspAction.Capabilities }
+            new JsonObject
+            {
+                ["action"] = JsonSerializer.SerializeToNode(
+                    LspAction.Capabilities,
+                    BridgeJsonContext.Default.LspAction
+                ),
+            }
         );
         capabilities["result"]!["definitionProvider"]!.GetValue<bool>().Should().BeTrue();
         capabilities["result"]!["typeDefinitionProvider"]!.GetValue<bool>().Should().BeTrue();

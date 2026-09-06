@@ -9,8 +9,8 @@
     "docs:lint": "markdownlint-cli2",
     "docs:format": "oxfmt --write README.md AGENTS.md \"docs/**/*.md\" \"skills/**/*.md\"",
     "docs:format:check": "oxfmt --check README.md AGENTS.md \"docs/**/*.md\" \"skills/**/*.md\"",
-    "tooling:format": "oxfmt --write package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .vscode eng docs/.vitepress/config.mjs",
-    "tooling:format:check": "oxfmt --check package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .vscode eng docs/.vitepress/config.mjs"
+    "tooling:format": "oxfmt --write package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .github .vscode eng docs/.vitepress/config.mjs",
+    "tooling:format:check": "oxfmt --check package.json global.json .oxfmtrc.json .markdownlint-cli2.jsonc .config .github .vscode eng docs/.vitepress/config.mjs"
   },
   "devDependencies": {
     "lint-staged": "17.5.0",
@@ -19,5 +19,5 @@
     "oxfmt": "0.66.0",
     "vitepress": "1.6.4"
   },
-  "packageManager": "bun@1.4.0"
+  "packageManager": "bun@1.4.2"
 }

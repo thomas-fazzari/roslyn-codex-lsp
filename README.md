@@ -13,11 +13,18 @@ The bridge reads saved files and works independently of your editor.
 
 ## Install
 
-Prerequisites: .NET SDK 10.0.400, Codex CLI, Bash, curl and tar.
-The SDK builds the tool during installation. Your C# project can target a different .NET version.
+Prerequisite: Codex CLI. The installer can use an existing Roslyn language server or install one for you.
+
+macOS and Linux, with Bash, curl and tar:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.sh | bash
+```
+
+Windows x64, in PowerShell:
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.ps1)))
 ```
 
 Open a new Codex session in your C# project. The `roslyn` MCP server is available globally.

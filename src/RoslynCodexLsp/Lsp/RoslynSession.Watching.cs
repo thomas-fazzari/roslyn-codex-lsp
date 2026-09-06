@@ -9,9 +9,6 @@ internal sealed partial class RoslynSession
 {
     private const int FileChangeBatchSize = 128;
 
-    private static bool IgnoredDirectory(string name) =>
-        name is ".git" or "bin" or "node_modules" or ".vs" or "analysis" or "research";
-
     private void StartWatching()
     {
         _watcher = new FileSystemWatcher(paths.Root)
@@ -45,7 +42,11 @@ internal sealed partial class RoslynSession
     private void QueueFile(string path)
     {
         var relative = Path.GetRelativePath(paths.Root, path);
-        if (relative.Split(Path.DirectorySeparatorChar).Any(IgnoredDirectory))
+        if (
+            relative
+                .Split(Path.DirectorySeparatorChar)
+                .Any(static name => !WorkspacePaths.IsWatchedDirectory(name))
+        )
         {
             return;
         }
@@ -117,12 +118,12 @@ internal sealed partial class RoslynSession
             {
                 if (exists)
                 {
-                    changes.Add(FileChange(path, FileDeleted));
+                    changes.Add((JsonNode)FileChange(path, FileDeleted));
                 }
             }
             else if (!exists || current.Value != previous)
             {
-                changes.Add(FileChange(path, exists ? FileChanged : FileCreated));
+                changes.Add((JsonNode)FileChange(path, exists ? FileChanged : FileCreated));
             }
 
             updates.Add(path, current);

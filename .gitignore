@@ -16,6 +16,7 @@
 !/global.json
 !/package.json
 !/install.sh
+!/install.ps1
 !/bun.lock
 
 !/.config/
@@ -26,6 +27,7 @@
 !/.github/dependabot.yml
 !/.github/workflows/
 !/.github/workflows/docs.yml
+!/.github/workflows/ci.yml
 !/.vscode/
 !/.vscode/extensions.json
 !/.vscode/settings.json

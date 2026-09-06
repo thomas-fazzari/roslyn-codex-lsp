@@ -89,12 +89,13 @@ internal sealed class LspChanges(
             ?? new JsonObject();
         var changes = ToDocumentChanges(edit);
         changes.Add(
-            new JsonObject
-            {
-                ["kind"] = WorkspaceEditService.RenameFileOperation,
-                ["oldUri"] = oldUri,
-                ["newUri"] = newUri,
-            }
+            (JsonNode)
+                new JsonObject
+                {
+                    ["kind"] = WorkspaceEditService.RenameFileOperation,
+                    ["oldUri"] = oldUri,
+                    ["newUri"] = newUri,
+                }
         );
         edit = new JsonObject { ["documentChanges"] = changes };
         return await CompleteAsync(
@@ -161,12 +162,13 @@ internal sealed class LspChanges(
         for (var index = 0; index < Math.Min(actions.Count, request.Limit); index++)
         {
             listing.Add(
-                new JsonObject
-                {
-                    ["index"] = index,
-                    ["title"] = actions[index]?["title"]?.DeepClone(),
-                    ["kind"] = actions[index]?["kind"]?.DeepClone(),
-                }
+                (JsonNode)
+                    new JsonObject
+                    {
+                        ["index"] = index,
+                        ["title"] = actions[index]?["title"]?.DeepClone(),
+                        ["kind"] = actions[index]?["kind"]?.DeepClone(),
+                    }
             );
         }
 
@@ -461,11 +463,12 @@ internal sealed class LspChanges(
             foreach (var (uri, edits) in changes)
             {
                 result.Add(
-                    new JsonObject
-                    {
-                        ["textDocument"] = new JsonObject { ["uri"] = uri, ["version"] = null },
-                        ["edits"] = edits?.DeepClone(),
-                    }
+                    (JsonNode)
+                        new JsonObject
+                        {
+                            ["textDocument"] = new JsonObject { ["uri"] = uri, ["version"] = null },
+                            ["edits"] = edits?.DeepClone(),
+                        }
                 );
             }
         }

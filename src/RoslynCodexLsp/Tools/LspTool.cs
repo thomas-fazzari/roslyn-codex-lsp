@@ -238,10 +238,16 @@ internal sealed partial class LspTool(
     {
         var payload = new JsonObject
         {
-            ["action"] = JsonSerializer.SerializeToNode(action),
+            ["action"] = JsonSerializer.SerializeToNode(
+                action,
+                BridgeJsonContext.Default.LspAction
+            ),
             [isError ? "error" : "result"] = result,
         };
-        var element = JsonSerializer.SerializeToElement(payload);
+        var element = JsonSerializer.SerializeToElement(
+            payload,
+            BridgeJsonContext.Default.JsonObject
+        );
         if (element.GetRawText().Length > MaximumResponseCharacters)
         {
             return Failure(

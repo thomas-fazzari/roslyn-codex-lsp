@@ -13,6 +13,10 @@ namespace RoslynCodexLsp.Tests.Integration.Roslyn;
 /// <summary>
 /// Runs the built MCP host against an isolated copy of a real C# solution.
 /// </summary>
+/// <remarks>
+/// Set ROSLYN_CODEX_TEST_EXECUTABLE to an absolute executable path to test a published bridge.
+/// Otherwise, the fixture launches the built assembly with dotnet.
+/// </remarks>
 internal sealed class RoslynTestWorkspace : IAsyncDisposable
 {
     private readonly DirectoryInfo _directory;
@@ -58,7 +62,9 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
     public Task WriteFileAsync(string relativePath, string text) =>
         File.WriteAllTextAsync(FilePath(relativePath), text, _cancellationToken);
 
-    public async Task<JsonObject> CallAsync(LspRequest request)
+    public Task<JsonObject> CallAsync(LspRequest request) => CallAsync(SerializeRequest(request));
+
+    public async Task<JsonObject> CallAsync(JsonObject request)
     {
         var response = await CallRawAsync(request).ConfigureAwait(false);
         response.StructuredContent.Should().NotBeNull(JsonSerializer.Serialize(response));
@@ -67,20 +73,8 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         return content;
     }
 
-    public async Task<CallToolResult> CallRawAsync(LspRequest request) =>
-        await Client
-            .CallToolAsync(
-                LspTool.ToolName,
-                new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["request"] = JsonSerializer.SerializeToNode(
-                        request,
-                        JsonSerializerOptions.Web
-                    ),
-                },
-                cancellationToken: _cancellationToken
-            )
-            .ConfigureAwait(false);
+    public Task<CallToolResult> CallRawAsync(LspRequest request) =>
+        CallRawAsync(SerializeRequest(request));
 
     public async Task<LspRequest> AtAsync(LspAction action, string file, string symbol)
     {
@@ -130,6 +124,18 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         }
     }
 
+    private static JsonObject SerializeRequest(LspRequest request) =>
+        JsonSerializer.SerializeToNode(request, JsonSerializerOptions.Web)!.AsObject();
+
+    private async Task<CallToolResult> CallRawAsync(JsonObject request) =>
+        await Client
+            .CallToolAsync(
+                LspTool.ToolName,
+                new Dictionary<string, object?>(StringComparer.Ordinal) { ["request"] = request },
+                cancellationToken: _cancellationToken
+            )
+            .ConfigureAwait(false);
+
     private async Task RestoreAsync()
     {
         using var process = new Process();
@@ -163,14 +169,14 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
 
     private async Task ConnectAsync()
     {
+        var executable = Environment.GetEnvironmentVariable("ROSLYN_CODEX_TEST_EXECUTABLE");
         _process = new Process
         {
-            StartInfo = new ProcessStartInfo("dotnet")
+            StartInfo = new ProcessStartInfo(executable ?? "dotnet")
             {
                 WorkingDirectory = _directory.FullName,
                 ArgumentList =
                 {
-                    typeof(LspTool).Assembly.Location,
                     BridgeOptions.WorkspaceArgument,
                     _directory.FullName,
                     BridgeOptions.StartupTimeoutArgument,
@@ -184,6 +190,11 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
                 UseShellExecute = false,
             },
         };
+        if (executable is null)
+        {
+            _process.StartInfo.ArgumentList.Insert(0, typeof(LspTool).Assembly.Location);
+        }
+
         _process.Start().Should().BeTrue();
         _standardError = _process.StandardError.ReadToEndAsync(CancellationToken.None);
         _client = await McpClient

@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Logging;
 using StreamJsonRpc;
 
@@ -76,6 +79,11 @@ internal sealed partial class RoslynSession(
         }
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "Parameters are JsonNode values serialized through the generated JSON context, not reflected CLR objects."
+    )]
     public async Task<JsonNode?> RequestAsync(
         string method,
         JsonNode? parameters,
@@ -100,6 +108,11 @@ internal sealed partial class RoslynSession(
         }
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "Parameters are JsonNode values serialized through the generated JSON context, not reflected CLR objects."
+    )]
     public async Task NotifyAsync(
         string method,
         JsonNode? parameters,
@@ -140,6 +153,30 @@ internal sealed partial class RoslynSession(
         await StopAsync().ConfigureAwait(false);
     }
 
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "The formatter uses generated JSON metadata. No RPC-marshaled objects are exchanged."
+    )]
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "The formatter uses generated JSON metadata. No RPC-marshaled objects are exchanged."
+    )]
+    internal static SystemTextJsonFormatter CreateFormatter()
+    {
+        var formatter = new SystemTextJsonFormatter();
+        var serializerOptions = formatter.JsonSerializerOptions;
+        var requestIdConverter = serializerOptions
+            .Converters.OfType<JsonConverter<RequestId>>()
+            .Single();
+        serializerOptions.TypeInfoResolver = JsonTypeInfoResolver.Combine(
+            new RequestIdResolver(requestIdConverter),
+            BridgeJsonContext.Default
+        );
+        return formatter;
+    }
+
     private static TaskCompletionSource NewCompletionSource() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -162,26 +199,36 @@ internal sealed partial class RoslynSession(
             ?? throw new InvalidOperationException("The Roslyn process could not be started.");
         _processLifetime = new CancellationTokenSource();
         _stderrTask = ReadStderrAsync(_process.StandardError, _processLifetime.Token);
-        var reader = new BoundedPipeReader(
-            PipeReader.Create(_process.StandardOutput.BaseStream),
-            MaximumProtocolBytes
-        );
-        _formatter = new SystemTextJsonFormatter();
-        _messageHandler = new HeaderDelimitedMessageHandler(
-            PipeWriter.Create(_process.StandardInput.BaseStream),
-            reader,
-            _formatter
-        );
-        _rpc = new JsonRpc(_messageHandler);
-        _rpc.AddLocalRpcTarget(new ClientCallbacks(this, paths, logger, _initialized));
-        _rpc.StartListening();
+        StartRpc(_process);
         StartWatching();
     }
 
+    private void StartRpc(Process process)
+    {
+        var reader = new BoundedPipeReader(
+            PipeReader.Create(process.StandardOutput.BaseStream),
+            MaximumProtocolBytes
+        );
+        _formatter = CreateFormatter();
+        var writer = PipeWriter.Create(process.StandardInput.BaseStream);
+        _messageHandler = new HeaderDelimitedMessageHandler(writer, reader, _formatter);
+        _rpc = new JsonRpc(_messageHandler);
+        var callbackMetadata = RpcTargetMetadata.FromShape<ClientCallbacks>();
+        var callbacks = new ClientCallbacks(this, paths, logger, _initialized);
+        _rpc.AddLocalRpcTarget(callbackMetadata, callbacks, options: null);
+        _rpc.StartListening();
+    }
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "The initialization payload is a JsonObject serialized through the generated JSON context."
+    )]
     private async Task InitializeAsync(CancellationToken cancellationToken)
     {
         var rpc =
             _rpc ?? throw new InvalidOperationException("The Roslyn transport is not started.");
+
         var initialize = ClientCapabilities.Create(paths);
         var result = await rpc.InvokeWithParameterObjectAsync<JsonObject>(
                 LspMethods.Initialize,
@@ -190,9 +237,13 @@ internal sealed partial class RoslynSession(
             )
             .ConfigureAwait(false);
         Capabilities = result["capabilities"]?.AsObject();
+
         await NotifyAsync(LspMethods.Initialized, new JsonObject(), cancellationToken)
             .ConfigureAwait(false);
-        var completed = await Task.WhenAny(_initialized.Task, rpc.Completion)
+
+        var initializationOrDisconnect = Task.WhenAny(_initialized.Task, rpc.Completion);
+
+        var completed = await initializationOrDisconnect
             .WaitAsync(cancellationToken)
             .ConfigureAwait(false);
         await completed.ConfigureAwait(false);
@@ -210,17 +261,9 @@ internal sealed partial class RoslynSession(
         var rpc = _rpc;
         _rpc = null;
         _process = null;
-        Capabilities = null;
-        _initialized = NewCompletionSource();
-        _documents.Clear();
-        _openedOrder.Clear();
-        _versions.Clear();
-        _workspaceFiles.Clear();
-        _watchRegistrations.Clear();
-        _watcher?.Dispose();
-        _watcher = null;
-        _pendingFiles.Clear();
-        _scanRequested = 0;
+
+        ClearWorkspace();
+
         if (process is null)
         {
             return;
@@ -232,29 +275,50 @@ internal sealed partial class RoslynSession(
         }
         finally
         {
-            rpc?.Dispose();
-            if (_messageHandler is not null)
-            {
-                await _messageHandler.DisposeAsync().ConfigureAwait(false);
-            }
-            _messageHandler = null;
-            _formatter?.Dispose();
-            _formatter = null;
-            if (_processLifetime is not null)
-            {
-                await _processLifetime.CancelAsync().ConfigureAwait(false);
-                _processLifetime.Dispose();
-                _processLifetime = null;
-            }
-
-            if (_stderrTask is not null)
-            {
-                await _stderrTask.ConfigureAwait(false);
-                _stderrTask = null;
-            }
-
-            process.Dispose();
+            await DisposeProcessResourcesAsync(rpc, process).ConfigureAwait(false);
         }
+    }
+
+    private void ClearWorkspace()
+    {
+        Capabilities = null;
+        _initialized = NewCompletionSource();
+        _documents.Clear();
+        _openedOrder.Clear();
+        _versions.Clear();
+        _workspaceFiles.Clear();
+        _watchRegistrations.Clear();
+        _watcher?.Dispose();
+        _watcher = null;
+        _pendingFiles.Clear();
+        _scanRequested = 0;
+    }
+
+    private async Task DisposeProcessResourcesAsync(JsonRpc? rpc, Process process)
+    {
+        rpc?.Dispose();
+        if (_messageHandler is not null)
+        {
+            await _messageHandler.DisposeAsync().ConfigureAwait(false);
+        }
+
+        _messageHandler = null;
+        _formatter?.Dispose();
+        _formatter = null;
+        if (_processLifetime is not null)
+        {
+            await _processLifetime.CancelAsync().ConfigureAwait(false);
+            _processLifetime.Dispose();
+            _processLifetime = null;
+        }
+
+        if (_stderrTask is not null)
+        {
+            await _stderrTask.ConfigureAwait(false);
+            _stderrTask = null;
+        }
+
+        process.Dispose();
     }
 
     private async Task ShutdownAsync(JsonRpc? rpc, Process process)

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>roslyn-codex-lsp</ToolCommandName>
     <Description>Roslyn language server tools for Codex through MCP.</Description>

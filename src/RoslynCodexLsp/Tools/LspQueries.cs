@@ -26,6 +26,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             LspAction.Hover => LspMethods.TextDocumentHover,
             _ => throw new ArgumentException("Unsupported navigation action.", nameof(request)),
         };
+
         if (request.Action is LspAction.References)
         {
             parameters["context"] = new JsonObject { ["includeDeclaration"] = true };
@@ -89,6 +90,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             var diagnostics = report["items"] as JsonArray ?? [];
             total += diagnostics.Count;
             var selected = new JsonArray();
+
             foreach (var diagnostic in diagnostics.Take(remaining))
             {
                 selected.Add(diagnostic?.DeepClone());
@@ -96,11 +98,12 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
 
             remaining -= selected.Count;
             results.Add(
-                new JsonObject
-                {
-                    ["file"] = Path.GetRelativePath(paths.Root, file),
-                    ["diagnostics"] = selected,
-                }
+                (JsonNode)
+                    new JsonObject
+                    {
+                        ["file"] = Path.GetRelativePath(paths.Root, file),
+                        ["diagnostics"] = selected,
+                    }
             );
         }
 

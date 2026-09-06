@@ -1,4 +1,13 @@
-.PHONY: backend-install backend-build backend-lint backend-format test test-integration copyrights copyrights-check
+.PHONY: backend-install backend-build backend-lint backend-format publish test test-integration copyrights copyrights-check
+
+RUNTIME_ID ?=
+APP_VERSION ?= 0.0.0-dev
+NATIVE_OUTPUT ?= artifacts/native
+
+publish: CONFIGURATION = Release
+publish:
+	@test -n "$(RUNTIME_ID)" || { echo 'Set RUNTIME_ID, for example osx-arm64.' >&2; exit 1; }
+	$(DOTNET) publish src/RoslynCodexLsp/RoslynCodexLsp.csproj --configuration $(CONFIGURATION) --runtime "$(RUNTIME_ID)" -p:Version="$(APP_VERSION)" --output "$(NATIVE_OUTPUT)"
 
 backend-install:
 	$(DOTNET) restore $(SOLUTION)

@@ -63,9 +63,11 @@ internal sealed partial class RoslynSession
                 cancellationToken
             )
             .ConfigureAwait(false);
+
         _documents.Add(path, text);
         _openedOrder.AddLast(path);
         _versions.Add(path, InitialDocumentVersion);
+
         return uri;
     }
 
@@ -275,6 +277,7 @@ internal sealed partial class RoslynSession
             AttributesToSkip = FileAttributes.ReparsePoint,
             IgnoreInaccessible = true,
         };
+
         while (pending.TryPop(out var directory))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -296,7 +299,7 @@ internal sealed partial class RoslynSession
         switch (entry)
         {
             case DirectoryInfo directory:
-                if (!IgnoredDirectory(directory.Name))
+                if (WorkspacePaths.IsWatchedDirectory(directory.Name))
                 {
                     pending.Push(directory);
                 }
@@ -323,17 +326,17 @@ internal sealed partial class RoslynSession
         {
             if (!_workspaceFiles.TryGetValue(path, out var previous))
             {
-                changes.Add(FileChange(path, FileCreated));
+                changes.Add((JsonNode)FileChange(path, FileCreated));
             }
             else if (stamp != previous)
             {
-                changes.Add(FileChange(path, FileChanged));
+                changes.Add((JsonNode)FileChange(path, FileChanged));
             }
         }
 
         foreach (var path in _workspaceFiles.Keys.Where(path => !current.ContainsKey(path)))
         {
-            changes.Add(FileChange(path, FileDeleted));
+            changes.Add((JsonNode)FileChange(path, FileDeleted));
         }
 
         await SendFileChangesAsync(changes, cancellationToken).ConfigureAwait(false);

@@ -67,10 +67,11 @@ internal static class ClientCapabilities
 
     public static JsonArray WorkspaceFolders(WorkspacePaths paths) =>
         [
-            new JsonObject
-            {
-                ["uri"] = new Uri(paths.Root + Path.DirectorySeparatorChar).AbsoluteUri,
-                ["name"] = Path.GetFileName(paths.Root),
-            },
+            (JsonNode)
+                new JsonObject
+                {
+                    ["uri"] = new Uri(paths.Root + Path.DirectorySeparatorChar).AbsoluteUri,
+                    ["name"] = Path.GetFileName(paths.Root),
+                },
         ];
 }

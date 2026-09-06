@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace RoslynCodexLsp.Tools;
 
-internal sealed record LspRequest
+internal sealed record LspRequest(int Limit = LspRequest.DefaultResultLimit)
 {
     internal const int DefaultResultLimit = 100;
     internal const int MaximumResultLimit = 1000;
@@ -59,5 +59,5 @@ internal sealed record LspRequest
     [Description(
         "Maximum returned diagnostics or results, from 1 to 1000. Truncation is explicit."
     )]
-    public int Limit { get; init; } = DefaultResultLimit;
+    public int Limit { get; init; } = Limit;
 }

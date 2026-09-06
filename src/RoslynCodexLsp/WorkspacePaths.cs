@@ -8,19 +8,59 @@ namespace RoslynCodexLsp;
 internal sealed class WorkspacePaths(string root)
 {
     internal const int MaximumFileCount = 50_000;
+    internal const string IntermediateDirectoryName = "obj";
 
-    private static readonly FrozenSet<string> _excludedDirectories = new[]
-    {
-        ".git",
-        ".vs",
-        ".idea",
-        ".vscode",
-        "bin",
-        "obj",
-        "node_modules",
-        "analysis",
-        "research",
-    }.ToFrozenSet(StringComparer.Ordinal);
+    internal static FrozenSet<string> ExcludedDirectories { get; } =
+        new[]
+        {
+            // VCS
+            ".git",
+            ".hg",
+            ".svn",
+            ".jj",
+            ".bzr",
+            // Editors / IDE
+            ".vs",
+            ".idea",
+            ".vscode",
+            ".fleet",
+            ".ionide",
+            ".history",
+            // .NET / build
+            "bin",
+            IntermediateDirectoryName,
+            "packages",
+            "publish",
+            "artifacts",
+            "TestResults",
+            "BenchmarkDotNet.Artifacts",
+            ".sonarqube",
+            ".sonarlint",
+            ".cache",
+            // Full-stack
+            "node_modules",
+            ".next",
+            ".nuxt",
+            ".svelte-kit",
+            ".angular",
+            ".astro",
+            ".docusaurus",
+            ".parcel-cache",
+            ".turbo",
+            ".pnpm-store",
+            ".vercel",
+            ".serverless",
+            "dist",
+            "build",
+            "out",
+            "coverage",
+            // Python (e.g. tooling/scripts)
+            ".venv",
+            "venv",
+            "__pycache__",
+            // Rust (e.g. tooling)
+            "target",
+        }.ToFrozenSet(StringComparer.Ordinal);
 
     public string Root { get; } = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
 
@@ -61,7 +101,12 @@ internal sealed class WorkspacePaths(string root)
 
     public string ToUri(string file) => new Uri(Resolve(file)).AbsoluteUri;
 
-    public static bool IsExcludedDirectory(string name) => _excludedDirectories.Contains(name);
+    public static bool IsExcludedDirectory(string name) => ExcludedDirectories.Contains(name);
+
+    // Restore changes under obj must still reach Roslyn's file watchers
+    public static bool IsWatchedDirectory(string name) =>
+        string.Equals(name, IntermediateDirectoryName, StringComparison.Ordinal)
+        || !IsExcludedDirectory(name);
 
     public IEnumerable<string> EnumerateFiles()
     {

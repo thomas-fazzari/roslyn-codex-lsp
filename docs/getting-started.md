@@ -2,23 +2,43 @@
 
 ## Install
 
-Prerequisites: .NET SDK 10.0.400, Codex CLI, Bash, curl and tar.
+Prerequisite: Codex CLI. On macOS and Linux, also use Bash, curl and tar.
 
-The installer compiles the bridge, so users need the SDK too. The bridge and Roslyn run on .NET 10.
-This does not require your C# project to target .NET 10. Keep the SDK and workloads required by that project installed, including any SDK pinned in its `global.json`.
+macOS and Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.sh | bash
 ```
 
-The script builds the bridge, installs the official Roslyn language server and registers `roslyn` globally in Codex.
+Windows x64, in PowerShell:
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.ps1)))
+```
+
+The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in Codex.
 It asks for an installation directory and offers a Codex skill for C# diagnostics, navigation and edits before confirming the changes.
 Accept the skill to give Codex guidance on tool arguments and edit proposals.
 Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
+Windows uses `%LOCALAPPDATA%\roslyn-codex-lsp`.
 Run the same command to update.
 
-From a source checkout, use `bash install.sh --source .`.
-Add `--yes` to accept defaults without a terminal, using `bash -s -- --yes` when piping the script.
+Releases target macOS x64 and ARM64, Linux x64 and ARM64 with glibc, and Windows x64.
+
+Use `--version vX.Y.Z` to select a release, or `--yes` for unattended installation.
+When piping the shell installer, pass options through `bash -s -- --yes`.
+PowerShell accepts `-Version vX.Y.Z` and `-Yes`.
+Use `--no-skill` or `-NoSkill` to skip skill installation.
+
+### Language server
+
+The installer offers to install the official Roslyn language server. This optional step requires the .NET 10 SDK to run `dotnet tool install`.
+Roslyn itself uses the .NET 10 runtime. The native bridge has no .NET runtime requirement.
+
+If Roslyn is already installed, choose its executable during setup or pass `--server /path/to/roslyn-language-server` (`-Server` in PowerShell).
+The installer then skips the .NET SDK check and server installation.
+
+Your C# project can target a different .NET version. Keep its required SDK and workloads installed, including any SDK pinned in its `global.json`.
 
 ## Use it
 

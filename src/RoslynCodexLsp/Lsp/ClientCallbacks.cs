@@ -3,6 +3,7 @@
 
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using PolyType;
 using StreamJsonRpc;
 
 namespace RoslynCodexLsp.Lsp;
@@ -10,6 +11,7 @@ namespace RoslynCodexLsp.Lsp;
 /// <summary>
 /// Answers Roslyn requests and consumes its notifications while tool calls are pending.
 /// </summary>
+[GenerateShape(IncludeMethods = MethodShapeFlags.AllPublic)]
 internal sealed partial class ClientCallbacks(
     RoslynSession session,
     WorkspacePaths paths,

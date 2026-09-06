@@ -1,6 +1,6 @@
 # Development
 
-Prerequisites: Git, Make, .NET SDK 10.0.400 and Bun 1.4.0. Run commands from the repository root.
+Prerequisites: Git, Make, .NET SDK 10.0.400 and Bun 1.4.2. Run commands from the repository root.
 
 ```sh
 make install
@@ -43,3 +43,15 @@ Integration tests copy them into temporary C# projects, so deliberate errors do 
 
 The bridge uses the official [Model Context Protocol (MCP) SDK](https://csharp.sdk.modelcontextprotocol.io/) and [StreamJsonRpc](https://microsoft.github.io/vs-streamjsonrpc/).
 Protocol messages use standard output. Logs use standard error.
+
+## Native builds and releases
+
+Native AOT is enabled in the bridge project. Tests run on the .NET runtime.
+Publish with `make publish RUNTIME_ID=osx-arm64`, using the runtime identifier for your platform. Output goes to `artifacts/native`.
+Native compilation requires the [platform build tools](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
+
+Set `ROSLYN_CODEX_TEST_EXECUTABLE` to the absolute path of the published executable, then run `make test-integration` to test it against Roslyn.
+
+The build workflow validates all five release targets. Its scripts live in `eng/ci`.
+Push a tag such as `v0.1.0` to publish a release after all checks pass.
+Tags such as `v0.1.0-rc.1` create prereleases. Each release contains platform archives and `SHA256SUMS`.
