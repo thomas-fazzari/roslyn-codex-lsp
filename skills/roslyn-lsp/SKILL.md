@@ -5,18 +5,29 @@ description: Use the Roslyn MCP for C# diagnostics, symbol navigation and semant
 
 # Roslyn LSP
 
-Use the `roslyn` server's `lsp` tool for compiler diagnostics and symbol-aware operations.
-It reads saved files in the current workspace. Narrow diagnostics to affected files or a glob.
-Use definitions, implementations and references when symbol identity matters.
+Use the `roslyn` server's `lsp` tool for C# diagnostics, navigation and semantic edits.
+It reads saved files in the current workspace.
 
 Pass arguments inside `request`, for example:
 
 ```json
-{ "request": { "action": "definition", "file": "src/Calculator.cs", "line": 12, "character": 9 } }
+{ "request": { "action": "diagnostics", "file": "src/Calculator.cs" } }
 ```
 
-Input coordinates start at 1 and count UTF-16 code units. Returned LSP locations start at 0.
-Read the structured result. An incomplete or truncated diagnostic response does not establish that the workspace is clean.
+## Scope and diagnostics
+
+- Start with the files relevant to the task. To check that the MCP works, request diagnostics for one known C# file.
+- Set `file` to a specific path or narrow glob. Omitting it, using `"*"` or `"**/*.cs"` selects all C# files. Use that scope only for a requested workspace audit. Split large audits by project or directory.
+- `limit` caps returned items. It does not reduce the files analyzed or the analysis time.
+- After a timeout, narrow the selection. If a single-file retry also times out, report the failure and stop retrying that request. Attribute the cause only when logs support it.
+- Read the structured result and report the checked scope. Split truncated results into narrower requests. A failed, incomplete or truncated response cannot establish that the workspace is clean.
+
+## Navigation
+
+Use `definition`, `implementation` and `references` when symbol identity matters.
+Pass `file`, `line` and `character`. Input positions start at 1 and count UTF-16 code units.
+Returned LSP locations and positions inside raw `request.parameters` start at 0.
+Use `capabilities` when an operation's support is uncertain.
 
 ## Edits
 
@@ -25,6 +36,4 @@ For code actions, send the listing's `proposalId` and zero-based `actionIndex` t
 
 Stay within the requested change. A preview-only request does not authorize applying it.
 When implementation is requested, carry authorized edits through without adding a separate approval step.
-After applying an edit, check affected diagnostics. On `stale_edit`, request a fresh proposal against the current files.
-
-Use `capabilities` when an operation's support is uncertain. Report unavailable or failed Roslyn calls as such.
+After applying an edit, check diagnostics for the affected files. On `stale_edit`, request a fresh proposal against the current files.

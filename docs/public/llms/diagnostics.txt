@@ -2,16 +2,20 @@ DIAGNOSTICS
 ===========
 
 Read errors, warnings and analyzer suggestions from saved C# files.
-Start with the files affected by the task.
+Start with the files affected by the task. To check that the MCP works,
+request diagnostics for one known C# file.
 
 One file:
 {"request":{"action":"diagnostics","file":"src/Calculator.cs"}}
 
-Matching files:
-{"request":{"action":"diagnostics","file":"src/**/*.cs","limit":200}}
+Matching files in one project:
+{"request":{"action":"diagnostics","file":"src/Core/**/*.cs","limit":200}}
 
-All selected C# files in the workspace:
+All C# files, only for a requested workspace audit:
 {"request":{"action":"diagnostics"}}
+
+Use a specific path or narrow glob. Omitting file, using "*" or "**/*.cs"
+selects all C# files. Split large audits by project or directory.
 
 RESULT
 ------
@@ -28,8 +32,15 @@ Convert the start line and character to one-based values for code_actions.
 LIMITS AND VERIFICATION
 -----------------------
 limit defaults to 100 and accepts 1 through 1000 across the whole response.
+It caps returned items, not the files analyzed or the analysis time.
 A scan accepts at most 1000 files. Narrow the glob if it exceeds this limit.
-If truncated is true, narrow the file selection or increase limit.
+If truncated is true, split the selection into narrower requests.
 Do not interpret an empty per-file array as clean when the result is truncated.
+Report the checked scope. A failed, incomplete or truncated response cannot
+establish that the workspace is clean.
 After applying changes, rerun diagnostics on the affected files.
 A clean diagnostic report does not replace tests or validate runtime behavior.
+
+After a timeout, narrow the selection. If a single-file retry also times out,
+report the failure and stop retrying that request.
+Attribute the cause only when logs support it.

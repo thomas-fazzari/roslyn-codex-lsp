@@ -3,7 +3,7 @@ SEMANTIC EDITS
 
 Keep edits within the user's requested scope. A preview-only request does not
 authorize applying changes. Follow an implementation request through its
-authorized edits and validation.
+authorized edits and validation without adding a separate approval step.
 
 RENAME A SYMBOL
 ---------------

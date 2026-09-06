@@ -140,6 +140,14 @@ try {
         throw 'The release archive does not contain the native executable.'
     }
 
+    if ($installSkill) {
+        $skillFile = Join-Path $temporaryDirectory 'SKILL.md'
+        Write-Host '📚 Downloading the latest Codex usage skill...'
+        Invoke-WebRequest -UseBasicParsing `
+            -Uri "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" `
+            -OutFile $skillFile
+    }
+
     $InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
     $bridgeDirectory = Join-Path $InstallDir 'bridge'
     $mcpArguments = @('mcp', 'add', 'roslyn')
@@ -170,8 +178,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $extractedDirectory 'LICENSE') -Destination $bridgeDirectory -Force
     if ($installSkill) {
         [System.IO.Directory]::CreateDirectory($skillDirectory) | Out-Null
-        Copy-Item -LiteralPath (Join-Path $extractedDirectory 'skills/roslyn-lsp/SKILL.md') `
-            -Destination (Join-Path $skillDirectory 'SKILL.md') -Force
+        Copy-Item -LiteralPath $skillFile -Destination (Join-Path $skillDirectory 'SKILL.md') -Force
     }
 
     Write-Host '🔗 Registering the global Codex MCP server...'

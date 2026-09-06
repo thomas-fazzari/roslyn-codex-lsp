@@ -172,6 +172,13 @@ if [[ ! -x "$temporary_directory/bridge/RoslynCodexLsp" ]]; then
   exit 1
 fi
 
+if [[ "$install_skill" == true ]]; then
+  printf '📚 Downloading the latest Codex skill...\n'
+  curl --fail --silent --show-error --location \
+    "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" \
+    --output "$temporary_directory/SKILL.md"
+fi
+
 mkdir -p "$install_directory"
 install_directory="$(cd "$install_directory" && pwd -P)"
 bridge_directory="$install_directory/bridge"
@@ -197,7 +204,7 @@ mv -f "$bridge_directory/RoslynCodexLsp.new" "$bridge_directory/RoslynCodexLsp"
 cp "$temporary_directory/bridge/LICENSE" "$bridge_directory/LICENSE"
 if [[ "$install_skill" == true ]]; then
   mkdir -p "$skill_directory"
-  cp "$temporary_directory/bridge/skills/roslyn-lsp/SKILL.md" "$skill_directory/SKILL.md"
+  cp "$temporary_directory/SKILL.md" "$skill_directory/SKILL.md"
 fi
 
 printf '🔗 Registering the global Codex MCP server...\n'

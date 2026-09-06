@@ -40,4 +40,7 @@ SETUP
 -----
 If roslyn is absent from the available MCP tools, follow the installation guide:
 https://thomas-fazzari.github.io/roslyn-codex-lsp/getting-started.html
-The installer offers a Codex usage skill. This reference describes the tool API.
+The installer fetches the Codex usage skill from master, independently of the
+selected binary release. Rerun the installer to update the skill.
+Use --no-skill in the shell installer or -NoSkill in PowerShell to skip it.
+This reference describes the tool API.

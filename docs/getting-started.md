@@ -17,11 +17,11 @@ Windows x64, in PowerShell:
 ```
 
 The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in Codex.
-It asks for an installation directory and offers a Codex skill for C# diagnostics, navigation and edits before confirming the changes.
-Accept the skill to give Codex guidance on tool arguments and edit proposals.
+Before making changes, it asks for an installation directory and offers an optional skill for C# diagnostics, navigation and edits.
+The skill comes from `master`, independently of the binary version.
 Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
 Windows uses `%LOCALAPPDATA%\roslyn-codex-lsp`.
-Run the same command to update.
+Run the same command to update the bridge and skill.
 
 Releases target macOS x64 and ARM64, Linux x64 and ARM64 with glibc, and Windows x64.
 
