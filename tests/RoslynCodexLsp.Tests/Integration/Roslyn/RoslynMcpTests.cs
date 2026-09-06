@@ -65,27 +65,23 @@ public sealed class RoslynMcpTests
         var definition = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Definition, ConsumerFile, "Greet(")
         );
-        AssertSingleLocation(definition, ContractFile);
+        AssertSingleLocation(definition, workspace.FilePath(ContractFile));
 
         var typeDefinition = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.TypeDefinition, ConsumerFile, "greeter.Greet")
         );
-        AssertSingleLocation(typeDefinition, ContractFile);
+        AssertSingleLocation(typeDefinition, workspace.FilePath(ContractFile));
 
         var implementation = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Implementation, ContractFile, "Greet(")
         );
-        AssertSingleLocation(implementation, ImplementationFile);
+        AssertSingleLocation(implementation, workspace.FilePath(ImplementationFile));
 
         var references = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.References, ContractFile, "Greet(")
         );
-        Locations(references)
-            .Should()
-            .Contain(path => path.EndsWith(ConsumerFile, StringComparison.Ordinal));
-        Locations(references)
-            .Should()
-            .NotContain(path => path.EndsWith(OtherGreeterFile, StringComparison.Ordinal));
+        Locations(references).Should().Contain(new Uri(workspace.FilePath(ConsumerFile)));
+        Locations(references).Should().NotContain(new Uri(workspace.FilePath(OtherGreeterFile)));
 
         var hover = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Hover, ConsumerFile, "Greet(")
@@ -159,7 +155,7 @@ public sealed class RoslynMcpTests
         var implementation = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Implementation, ContractFile, "Greet(")
         );
-        AssertSingleLocation(implementation, destination);
+        AssertSingleLocation(implementation, workspace.FilePath(destination));
         TestContext.Current.TestOutputHelper!.WriteLine(
             "Roslyn advertised file rename support. Preview, apply and navigation to the new path passed."
         );
@@ -277,7 +273,7 @@ public sealed class RoslynMcpTests
             .Should()
             .ContainSingle()
             .Which.Should()
-            .EndWith(expectedFile, response.ToJsonString());
+            .Be(new Uri(expectedFile), response.ToJsonString());
 
     private static async Task<JsonObject[]> DiagnosticsAsync(RoslynTestWorkspace workspace)
     {
@@ -312,14 +308,12 @@ public sealed class RoslynMcpTests
         }
     }
 
-    private static string[] Locations(JsonObject response) =>
+    private static Uri[] Locations(JsonObject response) =>
         [
             .. response["result"]!
                 .AsArray()
-                .Select(location =>
-                    new Uri(
-                        (location!["uri"] ?? location["targetUri"])!.GetValue<string>()
-                    ).LocalPath
-                ),
+                .Select(location => new Uri(
+                    (location!["uri"] ?? location["targetUri"])!.GetValue<string>()
+                )),
         ];
 }
