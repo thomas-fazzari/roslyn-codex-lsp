@@ -22,7 +22,6 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
-    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
   </PropertyGroup>
 
   <ItemGroup Condition="$(MSBuildProjectName.StartsWith('RoslynCodexLsp.Tests'))">
