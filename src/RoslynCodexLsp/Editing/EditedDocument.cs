@@ -81,7 +81,7 @@ internal sealed class EditedDocument(string path, byte[]? original)
                 (null, _, _) => WorkspaceEditService.CreateFileOperation,
                 (_, null, _) => WorkspaceEditService.DeleteFileOperation,
                 (_, _, true) => WorkspaceEditService.RenameFileOperation,
-                _ => "change",
+                _ => WorkspaceEditService.ChangeFileOperation,
             },
             ["beforeBytes"] = Original?.Length ?? 0,
             ["afterBytes"] = Content?.Length ?? 0,

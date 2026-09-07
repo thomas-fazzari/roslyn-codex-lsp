@@ -65,6 +65,16 @@ Some Roslyn commands reveal their edits only when executed.
 Proposals expire after five minutes. If source files change, `stale_edit` requires a new preview.
 Reloading also discards proposals. Applied file creation, deletion and renaming reload Roslyn before the next request.
 
+Application results contain a compact receipt, without source excerpts.
+`applied` reports whether the requested file writes finished. `synchronized` reports whether Roslyn was refreshed.
+If a later step fails, the response includes both `result` and `error`. The receipt still describes completed writes.
+`error.phase` identifies the failed step. A write failure also includes its path and operation.
+Inspect these fields before retrying. The next request reloads Roslyn after an application failure.
+
+`fileCount` counts distinct paths touched. `files` lists completed operations in order, so a path can appear more than once.
+Large receipts retain their totals and set `filesTruncated` when some paths are omitted.
+Commands also return `commandExecuted` and `commandResult`. An oversized command result is omitted with `commandResultTruncated`.
+
 ## Limits
 
 Edits must stay inside the workspace. Symbolic links below its root are rejected.

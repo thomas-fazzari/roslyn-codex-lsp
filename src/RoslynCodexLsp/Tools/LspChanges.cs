@@ -256,7 +256,7 @@ internal sealed class LspChanges(
         return await CompleteAsync(selected, request.Apply, cancellationToken);
     }
 
-    private async Task<JsonObject> CompleteAsync(
+    internal async Task<JsonObject> CompleteAsync(
         PendingChange change,
         bool apply,
         CancellationToken cancellationToken
@@ -272,106 +272,183 @@ internal sealed class LspChanges(
         }
 
         var result = await edits.ApplyAsync(edit, change.Snapshot, cancellationToken);
-        if (change.FileRename is not null)
+        result["synchronized"] = false;
+        var phase = EditApplicationPhase.Notify;
+        try
         {
-            await session.NotifyAsync(
-                LspMethods.WorkspaceDidRenameFiles,
-                change.FileRename,
-                cancellationToken
+            if (change.FileRename is not null)
+            {
+                await session.NotifyAsync(
+                    LspMethods.WorkspaceDidRenameFiles,
+                    change.FileRename,
+                    cancellationToken
+                );
+            }
+
+            var filesChanged = change.FileRename is not null || ChangesFileMembership(result);
+            if (change.Command is not null)
+            {
+                phase = EditApplicationPhase.Command;
+                result["commandExecuted"] = false;
+                var commandResult = await ExecuteCommandAsync(
+                    change.Command,
+                    cancellationToken,
+                    filesChanged
+                );
+                result = MergeApplicationResults(result, commandResult);
+                result["commandExecuted"] = true;
+                result["commandResult"] = commandResult["commandResult"]?.DeepClone();
+            }
+            else
+            {
+                phase = EditApplicationPhase.Synchronize;
+                await RefreshAfterChangesAsync(filesChanged, cancellationToken);
+            }
+        }
+        catch (EditApplicationException exception)
+        {
+            throw ApplicationFailure(
+                MergeApplicationResults(result, exception.Result),
+                exception.Phase,
+                exception
             );
         }
-
-        var filesChanged = change.FileRename is not null || ChangesFileMembership(result);
-        if (change.Command is not null)
+        catch (Exception exception)
         {
-            await ExecuteCommandAsync(change.Command, cancellationToken, filesChanged);
-            result["commandExecuted"] = true;
-        }
-        else
-        {
-            await RefreshAfterChangesAsync(filesChanged, cancellationToken);
+            throw ApplicationFailure(result, phase, exception);
         }
 
-        result["applied"] = true;
+        result["synchronized"] = true;
         return result;
     }
 
-    public async Task<JsonNode?> ExecuteCommandAsync(
+    public async Task<JsonObject> ExecuteCommandAsync(
         JsonObject command,
         CancellationToken cancellationToken,
         bool filesChanged = false
     )
     {
-        var reloadRequested = filesChanged ? 1 : 0;
         var snapshot = await CaptureAsync(cancellationToken);
-        Exception? callbackFailure = null;
-        session.ApplyWorkspaceEditAsync = async (edit, token) =>
-        {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                token,
-                cancellationToken
-            );
-            try
-            {
-                var applied = await edits.ApplyAsync(edit, snapshot, linked.Token);
-                if (ChangesFileMembership(applied))
-                {
-                    Interlocked.Exchange(ref reloadRequested, 1);
-                }
-
-                snapshot = await CaptureAsync(linked.Token);
-                return new JsonObject { ["applied"] = true };
-            }
-            catch (OperationCanceledException exception)
-            {
-                Interlocked.CompareExchange(ref callbackFailure, exception, comparand: null);
-                throw;
-            }
-            catch (Exception exception)
-                when (exception is ArgumentException or InvalidOperationException or IOException)
-            {
-                Interlocked.CompareExchange(ref callbackFailure, exception, comparand: null);
-                return new JsonObject
-                {
-                    ["applied"] = false,
-                    ["failureReason"] = exception.Message,
-                };
-            }
-        };
+        var callbacks = new CommandEdits(edits, snapshot, CaptureAsync, cancellationToken);
+        session.ApplyWorkspaceEditAsync = callbacks.ApplyAsync;
+        JsonNode? commandResult = null;
+        Exception? failure = null;
+        var commandExecuted = false;
         try
         {
-            var result = await session.RequestAsync(
+            commandResult = await session.RequestAsync(
                 LspMethods.WorkspaceExecuteCommand,
                 command,
                 cancellationToken
             );
-            if (Volatile.Read(ref callbackFailure) is { } failure)
-            {
-                ExceptionDispatchInfo.Throw(failure);
-            }
-
-            return result;
+            commandExecuted = true;
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
         }
         finally
         {
             session.ApplyWorkspaceEditAsync = null;
+            await callbacks.DisposeAsync();
+        }
+
+        var result = callbacks.Result;
+        result["commandExecuted"] = commandExecuted;
+        result["synchronized"] = false;
+        failure = callbacks.Failure ?? failure;
+        if (failure is not null)
+        {
+            if (callbacks.HasChanges)
+            {
+                throw ApplicationFailure(result, EditApplicationPhase.Command, failure);
+            }
+
+            ExceptionDispatchInfo.Throw(failure);
+        }
+
+        try
+        {
             await RefreshAfterChangesAsync(
-                Volatile.Read(ref reloadRequested) != 0,
+                filesChanged || callbacks.ChangesFileMembership,
                 cancellationToken
             );
         }
+        catch (Exception exception)
+        {
+            throw ApplicationFailure(result, EditApplicationPhase.Synchronize, exception);
+        }
+
+        result["commandResult"] = commandResult;
+        result["synchronized"] = true;
+        return result;
+    }
+
+    internal static JsonObject MergeApplicationResults(JsonObject first, JsonObject second)
+    {
+        var files = new JsonArray();
+        var paths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var result in new[] { first, second })
+        {
+            foreach (var file in result["files"]!.AsArray())
+            {
+                files.Add(file!.DeepClone());
+                paths.Add(file["path"]!.GetValue<string>());
+            }
+        }
+
+        var applied = first["applied"]!.GetValue<bool>() && second["applied"]!.GetValue<bool>();
+        var merged = new JsonObject
+        {
+            ["applied"] = applied,
+            ["partial"] = !applied && paths.Count != 0,
+            ["fileCount"] = paths.Count,
+            ["operationCount"] = files.Count,
+            ["files"] = files,
+        };
+        if (second.TryGetPropertyValue("commandExecuted", out var commandExecuted))
+        {
+            merged["commandExecuted"] = commandExecuted?.DeepClone();
+        }
+
+        return merged;
+    }
+
+    private static EditApplicationException ApplicationFailure(
+        JsonObject result,
+        EditApplicationPhase phase,
+        Exception exception
+    )
+    {
+        result["synchronized"] = false;
+        result["partial"] =
+            !result["applied"]!.GetValue<bool>() && result["fileCount"]!.GetValue<int>() != 0;
+        return exception is EditApplicationException application
+            ? new EditApplicationException(
+                result,
+                application.Phase,
+                application.FailedPath,
+                application.FailedOperation,
+                application.InnerException!
+            )
+            : new EditApplicationException(
+                result,
+                phase,
+                failedPath: null,
+                failedOperation: null,
+                exception
+            );
     }
 
     private static bool ChangesFileMembership(JsonObject result) =>
         result["files"] is JsonArray files
-        && files
-            .OfType<JsonObject>()
-            .Any(static file =>
-                file["kind"]?.GetValue<string>()
-                    is WorkspaceEditService.CreateFileOperation
-                        or WorkspaceEditService.DeleteFileOperation
-                        or WorkspaceEditService.RenameFileOperation
-            );
+        && files.OfType<JsonObject>().Any(IsFileMembershipChange);
+
+    internal static bool IsFileMembershipChange(JsonObject file) =>
+        file["kind"]?.GetValue<string>()
+            is WorkspaceEditService.CreateFileOperation
+                or WorkspaceEditService.DeleteFileOperation
+                or WorkspaceEditService.RenameFileOperation;
 
     private async Task RefreshAfterChangesAsync(
         bool filesChanged,

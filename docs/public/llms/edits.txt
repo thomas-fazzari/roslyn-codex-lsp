@@ -46,6 +46,14 @@ On stale_edit, request a new preview against current files. Do not retry the old
 After applying, inspect the result and rerun diagnostics on affected files.
 File creation, deletion and renaming trigger a Roslyn reload before the next request.
 
+Application results contain completed file operations without source excerpts.
+applied reports completed writes. synchronized reports a successful Roslyn refresh.
+On a later failure, both result and error are present. Read the receipt and error.phase
+before retrying. A failed write also identifies its path and operation.
+The next request reloads Roslyn after an application failure.
+fileCount counts distinct paths. files lists completed operations in order.
+filesTruncated marks omitted paths. commandResultTruncated marks an omitted command result.
+
 Edits must remain inside the workspace. Symlinks below its root are rejected.
 Each file replacement is atomic. A failed multi-file operation can leave partial
 changes, so inspect the workspace before retrying.

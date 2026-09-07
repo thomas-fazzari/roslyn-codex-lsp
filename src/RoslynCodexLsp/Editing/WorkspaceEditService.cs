@@ -1,6 +1,7 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Runtime.ExceptionServices;
 using System.Text.Json.Nodes;
 
 namespace RoslynCodexLsp.Editing;
@@ -8,6 +9,7 @@ namespace RoslynCodexLsp.Editing;
 internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
 {
     internal const int MaximumFileBytes = 8 * BytesPerMebibyte;
+    internal const string ChangeFileOperation = "change";
     internal const string CreateFileOperation = "create";
     internal const string RenameFileOperation = "rename";
     internal const string DeleteFileOperation = "delete";
@@ -34,48 +36,176 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
     )
     {
         var documents = await PlanAsync(edit, snapshot, cancellationToken);
-        var result = Describe(documents, applied: true);
         await EnsureCurrentAsync(snapshot, cancellationToken);
         var temporaryFiles = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var completedOperations = new List<AppliedOperation>();
+
+        var failure = await ApplyMutationsAsync(
+            documents,
+            snapshot,
+            temporaryFiles,
+            completedOperations,
+            cancellationToken
+        );
+        var cleanupFailure = CleanupTemporaryFiles(temporaryFiles);
+        return CompleteApply(completedOperations, failure, cleanupFailure);
+    }
+
+    private static JsonObject CompleteApply(
+        List<AppliedOperation> completedOperations,
+        ApplyFailure? failure,
+        (Exception Exception, string Path)? cleanupFailure
+    )
+    {
+        if (failure is not null)
+        {
+            if (completedOperations.Count == 0)
+            {
+                ExceptionDispatchInfo.Throw(failure.Exception);
+            }
+
+            throw new EditApplicationException(
+                DescribeApplied(completedOperations, applied: false),
+                EditApplicationPhase.Write,
+                failure.Mutation?.Path,
+                failure.Mutation?.Operation,
+                failure.Exception
+            );
+        }
+        if (cleanupFailure is { } cleanup)
+        {
+            throw new EditApplicationException(
+                DescribeApplied(completedOperations, applied: true),
+                EditApplicationPhase.Cleanup,
+                cleanup.Path,
+                failedOperation: null,
+                innerException: cleanup.Exception
+            );
+        }
+
+        return DescribeApplied(completedOperations, applied: true);
+    }
+
+    private async Task<ApplyFailure?> ApplyMutationsAsync(
+        List<EditedDocument> documents,
+        WorkspaceSnapshot snapshot,
+        Dictionary<string, string> temporaryFiles,
+        List<AppliedOperation> completedOperations,
+        CancellationToken cancellationToken
+    )
+    {
+        PendingMutation? pendingMutation = null;
         try
         {
             await StageAsync(documents, temporaryFiles, cancellationToken);
             await EnsureCurrentAsync(snapshot, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var (destination, temporary) in temporaryFiles)
-            {
-                paths.Resolve(destination);
-                File.Move(temporary, destination, overwrite: true);
-            }
-
-            foreach (
-                var document in documents.Where(document =>
-                    document is { CaseOnlyRename: true, Content: not null }
-                )
-            )
-            {
-                File.Move(document.OriginalPath, document.Path, overwrite: true);
-            }
-
-            foreach (
-                var document in documents.Where(document =>
-                    document is { Changed: true, Content: null }
-                )
-            )
-            {
-                paths.Resolve(document.Path);
-                File.Delete(document.Path);
-            }
+            ApplyDestinationWrites(
+                documents,
+                temporaryFiles,
+                completedOperations,
+                ref pendingMutation
+            );
+            ApplyCaseOnlyRenames(documents, completedOperations, ref pendingMutation);
+            ApplySourceDeletions(documents, completedOperations, ref pendingMutation);
         }
-        finally
+        catch (Exception exception)
         {
-            foreach (var temporary in temporaryFiles.Values)
+            return new ApplyFailure(exception, pendingMutation);
+        }
+
+        return null;
+    }
+
+    private void ApplyDestinationWrites(
+        List<EditedDocument> documents,
+        Dictionary<string, string> temporaryFiles,
+        List<AppliedOperation> completedOperations,
+        ref PendingMutation? pendingMutation
+    )
+    {
+        foreach (
+            var document in documents.Where(document =>
+                document is { Changed: true, Content: not null }
+            )
+        )
+        {
+            var destination = document.Path;
+            var temporary = temporaryFiles[destination];
+            pendingMutation = new(RelativePath(destination), DestinationOperation(document));
+            paths.Resolve(destination);
+            File.Move(temporary, destination, overwrite: true);
+            completedOperations.Add(
+                new(
+                    RelativePath(document.CaseOnlyRename ? document.OriginalPath : destination),
+                    DestinationOperation(document)
+                )
+            );
+        }
+    }
+
+    private void ApplyCaseOnlyRenames(
+        List<EditedDocument> documents,
+        List<AppliedOperation> completedOperations,
+        ref PendingMutation? pendingMutation
+    )
+    {
+        foreach (
+            var document in documents.Where(document =>
+                document is { CaseOnlyRename: true, Content: not null }
+            )
+        )
+        {
+            pendingMutation = new(RelativePath(document.Path), RenameFileOperation);
+            File.Move(document.OriginalPath, document.Path, overwrite: true);
+            completedOperations.Add(
+                new(
+                    RelativePath(document.Path),
+                    RenameFileOperation,
+                    RelativePath(document.OriginalPath)
+                )
+            );
+        }
+    }
+
+    private void ApplySourceDeletions(
+        List<EditedDocument> documents,
+        List<AppliedOperation> completedOperations,
+        ref PendingMutation? pendingMutation
+    )
+    {
+        foreach (
+            var document in documents.Where(document =>
+                document is { Changed: true, Content: null }
+            )
+        )
+        {
+            pendingMutation = new(RelativePath(document.Path), DeleteFileOperation);
+            paths.Resolve(document.Path);
+            File.Delete(document.Path);
+            completedOperations.Add(new(RelativePath(document.Path), DeleteFileOperation));
+        }
+    }
+
+    private (Exception Exception, string Path)? CleanupTemporaryFiles(
+        Dictionary<string, string> temporaryFiles
+    )
+    {
+        (Exception Exception, string Path)? failure = null;
+        foreach (var temporary in temporaryFiles.Values)
+        {
+            try
             {
                 File.Delete(temporary);
             }
+            catch (Exception cleanupException)
+            {
+                failure ??= (cleanupException, RelativePath(temporary));
+            }
         }
 
-        return result;
+        return failure;
     }
 
     private async Task StageAsync(
@@ -404,6 +534,53 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
             ),
         };
     }
+
+    private static JsonObject DescribeApplied(
+        List<AppliedOperation> completedOperations,
+        bool applied
+    )
+    {
+        var files = completedOperations
+            .Select(operation => (JsonNode)DescribeAppliedOperation(operation))
+            .ToArray();
+        var fileCount = completedOperations
+            .Select(operation => operation.Path)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        return new JsonObject
+        {
+            ["applied"] = applied,
+            ["partial"] = !applied && fileCount != 0,
+            ["fileCount"] = fileCount,
+            ["files"] = new JsonArray(files),
+        };
+    }
+
+    private static JsonObject DescribeAppliedOperation(AppliedOperation operation)
+    {
+        var result = new JsonObject { ["path"] = operation.Path, ["kind"] = operation.Kind };
+        if (operation.OldPath is not null)
+        {
+            result["oldPath"] = operation.OldPath;
+        }
+
+        return result;
+    }
+
+    private static string DestinationOperation(EditedDocument document) =>
+        document.Original is null ? CreateFileOperation : ChangeFileOperation;
+
+    private string RelativePath(string path) => Path.GetRelativePath(paths.Root, path);
+
+    private readonly record struct PendingMutation(string Path, string Operation);
+
+    private readonly record struct AppliedOperation(
+        string Path,
+        string Kind,
+        string? OldPath = null
+    );
+
+    private sealed record ApplyFailure(Exception Exception, PendingMutation? Mutation);
 
     private static string RequiredString(JsonNode node, string property)
     {

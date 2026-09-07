@@ -43,6 +43,8 @@ internal sealed partial class RoslynSession(
         && _process is { HasExited: false }
         && _rpc is { IsDisposed: false, Completion.IsCompleted: false };
 
+    public void RequireReload() => _restartRequired = true;
+
     public Func<
         JsonObject,
         CancellationToken,

@@ -27,8 +27,14 @@ internal sealed partial class LspTool(
     internal const string ToolName = "lsp";
     internal const string InvalidRequestErrorCode = "invalid_request";
     internal const string StaleEditErrorCode = "stale_edit";
+    internal const string TimeoutErrorCode = "timeout";
+    internal const string CancelledErrorCode = "cancelled";
+    internal const string LspErrorCode = "lsp_error";
+    internal const string IoErrorCode = "io_error";
+    internal const string ResultTooLargeErrorCode = "result_too_large";
 
-    private const int MaximumResponseCharacters = 256_000;
+    internal const int MaximumResponseCharacters = 256_000;
+    private const int MaximumErrorCharacters = 2_000;
 
     private static readonly FrozenSet<string> _readOnlyMethods = new[]
     {
@@ -81,20 +87,27 @@ internal sealed partial class LspTool(
                     : options.StartupTimeout + options.RequestTimeout
             );
             var result = await DispatchAsync(request, timeout.Token);
-            if (!logger.IsEnabled(LogLevel.Debug))
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                return Response(request.Action, result);
+                var elapsedMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                OperationCompleted(logger, request.Action, elapsedMilliseconds);
             }
 
-            var elapsedMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-            OperationCompleted(logger, request.Action, elapsedMilliseconds);
-            return Response(request.Action, result);
+            return Response(
+                request.Action,
+                result,
+                preserveApplication: IsApplicationRequest(request)
+            );
+        }
+        catch (EditApplicationException exception)
+        {
+            return ReportApplicationFailure(request.Action, exception, cancellationToken);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return Failure(
                 request.Action,
-                "timeout",
+                TimeoutErrorCode,
                 "The LSP operation timed out. No successful result is available."
             );
         }
@@ -104,7 +117,7 @@ internal sealed partial class LspTool(
         }
         catch (RemoteInvocationException exception)
         {
-            return Failure(request.Action, "lsp_error", exception.Message, exception.ErrorCode);
+            return Failure(request.Action, LspErrorCode, exception.Message, exception.ErrorCode);
         }
         catch (Exception exception)
             when (exception
@@ -115,14 +128,7 @@ internal sealed partial class LspTool(
                         or JsonException
             )
         {
-            OperationFailed(logger, request.Action, exception);
-            var code = exception switch
-            {
-                TimeoutException => "timeout",
-                IOException => "io_error",
-                _ => InvalidRequestErrorCode,
-            };
-            return Failure(request.Action, code, exception.Message);
+            return ReportFailure(request.Action, exception);
         }
         finally
         {
@@ -131,6 +137,41 @@ internal sealed partial class LspTool(
     }
 
     public void Dispose() => _gate.Dispose();
+
+    private CallToolResult ReportFailure(LspAction action, Exception exception)
+    {
+        OperationFailed(logger, action, exception);
+        var code = exception switch
+        {
+            TimeoutException => TimeoutErrorCode,
+            IOException => IoErrorCode,
+            _ => InvalidRequestErrorCode,
+        };
+        return Failure(action, code, exception.Message);
+    }
+
+    private CallToolResult ReportApplicationFailure(
+        LspAction action,
+        EditApplicationException exception,
+        CancellationToken cancellationToken
+    )
+    {
+        changes.Clear();
+        session.RequireReload();
+        OperationFailed(logger, action, exception);
+        return ApplicationFailure(action, exception, cancellationToken.IsCancellationRequested);
+    }
+
+    private static bool IsApplicationRequest(LspRequest request) =>
+        request.Apply
+        && (
+            request.Action switch
+            {
+                LspAction.Rename or LspAction.RenameFile or LspAction.CodeActions => true,
+                LspAction.Request => request.Method is LspMethods.WorkspaceExecuteCommand,
+                _ => false,
+            }
+        );
 
     private async Task<JsonNode?> DispatchAsync(
         LspRequest request,
@@ -234,7 +275,12 @@ internal sealed partial class LspTool(
         return isLifecycle || isSynchronization || method is LspMethods.WorkspaceApplyEdit;
     }
 
-    private static CallToolResult Response(LspAction action, JsonNode? result, bool isError = false)
+    internal static CallToolResult Response(
+        LspAction action,
+        JsonNode? result,
+        JsonObject? error = null,
+        bool preserveApplication = false
+    )
     {
         var payload = new JsonObject
         {
@@ -242,21 +288,40 @@ internal sealed partial class LspTool(
                 action,
                 BridgeJsonContext.Default.LspAction
             ),
-            [isError ? "error" : "result"] = result,
         };
+        if (error is not null)
+        {
+            payload["error"] = error;
+        }
+
+        if (result is not null || error is null)
+        {
+            payload["result"] = result;
+        }
+
         var element = JsonSerializer.SerializeToElement(
             payload,
             BridgeJsonContext.Default.JsonObject
         );
         if (element.GetRawText().Length > MaximumResponseCharacters)
         {
-            return Failure(
-                action,
-                "result_too_large",
-                $"The result exceeds {MaximumResponseCharacters} characters. Narrow the query or lower limit."
+            if (!preserveApplication || result is not JsonObject application)
+            {
+                return Failure(
+                    action,
+                    ResultTooLargeErrorCode,
+                    $"The result exceeds {MaximumResponseCharacters} characters. Narrow the query or lower limit."
+                );
+            }
+
+            CompactApplication(payload, application);
+            element = JsonSerializer.SerializeToElement(
+                payload,
+                BridgeJsonContext.Default.JsonObject
             );
         }
 
+        var isError = error is not null;
         return new CallToolResult
         {
             IsError = isError,
@@ -266,11 +331,87 @@ internal sealed partial class LspTool(
                 new TextContentBlock
                 {
                     Text = isError
-                        ? "LSP operation failed. See the structured error."
+                        ? "LSP operation failed. See the structured error and any applied changes."
                         : "LSP operation completed. See the structured result.",
                 },
             ],
         };
+    }
+
+    private static void CompactApplication(JsonObject payload, JsonObject result)
+    {
+        if (result.Remove("commandResult"))
+        {
+            result["commandResultTruncated"] = true;
+        }
+
+        if (
+            payload.ToJsonString(BridgeJsonContext.Default.Options).Length
+            <= MaximumResponseCharacters
+        )
+        {
+            return;
+        }
+
+        var files = result["files"]!.AsArray();
+        result.Remove("files");
+        var included = new JsonArray();
+        result["files"] = included;
+        result["filesTruncated"] = true;
+        var remaining =
+            MaximumResponseCharacters
+            - payload.ToJsonString(BridgeJsonContext.Default.Options).Length;
+        foreach (var file in files)
+        {
+            var length =
+                file!.ToJsonString(BridgeJsonContext.Default.Options).Length
+                + (included.Count == 0 ? 0 : 1);
+            if (length > remaining)
+            {
+                break;
+            }
+
+            included.Add(file.DeepClone());
+            remaining -= length;
+        }
+    }
+
+    internal static CallToolResult ApplicationFailure(
+        LspAction action,
+        EditApplicationException exception,
+        bool cancellationRequested
+    )
+    {
+        var cause = exception.InnerException!;
+        var code = cause switch
+        {
+            OperationCanceledException => cancellationRequested
+                ? CancelledErrorCode
+                : TimeoutErrorCode,
+            TimeoutException => TimeoutErrorCode,
+            RemoteInvocationException => LspErrorCode,
+            IOException or UnauthorizedAccessException => IoErrorCode,
+            _ => InvalidRequestErrorCode,
+        };
+        exception.Result["synchronized"] = false;
+        return Response(
+            action,
+            exception.Result,
+            new JsonObject
+            {
+                ["code"] = code,
+                ["message"] = cause.Message[
+                    ..Math.Min(cause.Message.Length, MaximumErrorCharacters)
+                ],
+                ["phase"] = JsonSerializer.SerializeToNode(
+                    exception.Phase,
+                    BridgeJsonContext.Default.EditApplicationPhase
+                ),
+                ["path"] = exception.FailedPath,
+                ["operation"] = exception.FailedOperation,
+            },
+            preserveApplication: true
+        );
     }
 
     private static CallToolResult Failure(
@@ -281,13 +422,13 @@ internal sealed partial class LspTool(
     ) =>
         Response(
             action,
+            result: null,
             new JsonObject
             {
                 ["code"] = code,
                 ["message"] = message,
                 ["rpcCode"] = rpcCode,
-            },
-            isError: true
+            }
         );
 
     [LoggerMessage(

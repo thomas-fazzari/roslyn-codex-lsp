@@ -38,6 +38,98 @@ public sealed class WorkspaceEditServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ApplyReturnsCompactReceiptForManyLargeTextFilesAsync()
+    {
+        const int fileCount = 64;
+        const int textLength = EditedDocument.MaximumPreviewCharacters + 100;
+        var edit = new JsonObject { ["changes"] = new JsonObject() };
+        var changes = edit["changes"]!.AsObject();
+        for (var index = 0; index < fileCount; index++)
+        {
+            var path = await WriteAsync(
+                string.Create(CultureInfo.InvariantCulture, $"Source{index}.cs"),
+                new string('a', textLength) + "\n"
+            );
+            changes[new Uri(path).AbsoluteUri] = new JsonArray(TextEdit(0, 0, 0, 1, "b"));
+        }
+
+        var service = CreateService();
+        var snapshot = await service.CaptureAsync(TestCancellation);
+
+        var result = await service.ApplyAsync(edit, snapshot, TestCancellation);
+
+        result["applied"]!.GetValue<bool>().Should().BeTrue();
+        result["fileCount"]!.GetValue<int>().Should().Be(fileCount);
+        var files = result["files"]!.AsArray();
+        files.Should().HaveCount(fileCount);
+        files
+            .OfType<JsonObject>()
+            .Should()
+            .AllSatisfy(file =>
+            {
+                file.Select(property => property.Key).Should().BeEquivalentTo(["path", "kind"]);
+                file["path"]!.GetValue<string>().Should().NotBeNullOrWhiteSpace();
+                file["kind"]!
+                    .GetValue<string>()
+                    .Should()
+                    .Be(WorkspaceEditService.ChangeFileOperation);
+            });
+    }
+
+    [Fact]
+    public async Task ApplyReportsCompletedWritesWhenLaterDeleteFailsAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Skip("This test requires Unix directory permissions.");
+            return;
+        }
+
+        Assert.SkipWhen(
+            string.Equals(Environment.UserName, "root", StringComparison.OrdinalIgnoreCase),
+            "The root user bypasses Unix directory permissions."
+        );
+
+        var first = await WriteAsync("First.cs", "class First {}");
+        var directory = Directory.CreateDirectory(Path.Combine(_root, "Nested"));
+        var deleted = await WriteAsync(Path.Combine("Nested", "Delete.cs"), "class Delete {}");
+        var service = CreateService();
+        var snapshot = await service.CaptureAsync(TestCancellation);
+        var edit = DocumentChanges(
+            DocumentEdit(first, version: null, TextEdit(0, 6, 0, 11, "Changed")),
+            DeleteFile(deleted)
+        );
+        var originalMode = File.GetUnixFileMode(directory.FullName);
+        File.SetUnixFileMode(directory.FullName, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+        try
+        {
+            var apply = () => service.ApplyAsync(edit, snapshot, TestCancellation);
+            var exception = (await apply.Should().ThrowAsync<EditApplicationException>()).Which;
+
+            exception.Phase.Should().Be(EditApplicationPhase.Write);
+            exception.FailedPath.Should().Be(Path.Combine("Nested", "Delete.cs"));
+            exception.FailedOperation.Should().Be(WorkspaceEditService.DeleteFileOperation);
+            (exception.InnerException is IOException or UnauthorizedAccessException)
+                .Should()
+                .BeTrue();
+            exception.Result["applied"]!.GetValue<bool>().Should().BeFalse();
+            exception.Result["fileCount"]!.GetValue<int>().Should().Be(1);
+            exception.Result["files"]![0]!["path"]!.GetValue<string>().Should().Be("First.cs");
+            exception.Result["files"]![0]!["kind"]!
+                .GetValue<string>()
+                .Should()
+                .Be(WorkspaceEditService.ChangeFileOperation);
+            await AssertFileTextAsync(first, "class Changed {}");
+            File.Exists(deleted).Should().BeTrue();
+        }
+        finally
+        {
+            File.SetUnixFileMode(directory.FullName, originalMode);
+        }
+    }
+
+    [Fact]
     public async Task PreviewDoesNotChangeFilesAsync()
     {
         var path = await WriteAsync("Source.cs", "class A {}");

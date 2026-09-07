@@ -3,6 +3,7 @@
 
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Tools;
 using StreamJsonRpc.Protocol;
 
@@ -11,6 +12,7 @@ namespace RoslynCodexLsp;
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(LspRequest))]
 [JsonSerializable(typeof(LspAction))]
+[JsonSerializable(typeof(EditApplicationPhase))]
 [JsonSerializable(typeof(JsonNode))]
 [JsonSerializable(typeof(JsonObject))]
 [JsonSerializable(typeof(JsonArray))]
