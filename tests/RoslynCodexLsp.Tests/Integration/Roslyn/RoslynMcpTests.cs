@@ -112,6 +112,54 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task RefreshesUnopenedFilesWithUnchangedMetadataBeforeRenameAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+        var request = await workspace.AtAsync(LspAction.References, ContractFile, "Greet(");
+        var consumerPath = workspace.FilePath(ConsumerFile);
+        var consumerUri = new Uri(consumerPath);
+
+        var references = await workspace.CallAsync(request);
+        Locations(references).Should().Contain(consumerUri);
+
+        var original = await workspace.ReadFileAsync(ConsumerFile);
+        var changed = original.Replace(
+            "greeter.Greet(\"world\")",
+            "OtherGreeter.Greet(\"\")",
+            StringComparison.Ordinal
+        );
+        changed.Should().NotBe(original);
+        var file = new FileInfo(consumerPath);
+        var length = file.Length;
+        var lastWriteTime = file.LastWriteTimeUtc;
+        await workspace.WriteFileAsync(ConsumerFile, changed);
+        File.SetLastWriteTimeUtc(consumerPath, lastWriteTime);
+        file.Refresh();
+        file.Length.Should().Be(length);
+        file.LastWriteTimeUtc.Should().Be(lastWriteTime);
+
+        var preview = await workspace.CallAsync(
+            request with
+            {
+                Action = LspAction.Rename,
+                NewName = "Welcome",
+            }
+        );
+        preview["result"]!["files"]!
+            .AsArray()
+            .Select(item =>
+                item!["path"]!.GetValue<string>().Replace(Path.DirectorySeparatorChar, '/')
+            )
+            .Should()
+            .BeEquivalentTo([ContractFile, ImplementationFile]);
+
+        var refreshed = await workspace.CallAsync(request);
+        Locations(refreshed).Should().NotContain(consumerUri);
+        (await workspace.ReadFileAsync(ConsumerFile)).Should().Be(changed);
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task RenamesFilesOnlyWhenRoslynAdvertisesSupportAsync()
     {
         const string destination = "Application/RenamedGreeter.cs";

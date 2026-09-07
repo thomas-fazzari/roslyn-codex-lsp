@@ -226,6 +226,27 @@ internal sealed partial class RoslynSession
         _versions[path] = version;
     }
 
+    private async Task SynchronizeClosedDocumentAsync(
+        string uri,
+        CancellationToken cancellationToken
+    )
+    {
+        var path = paths.Resolve(uri);
+        if (_documents.ContainsKey(path) || !IsCSharpFile(path))
+        {
+            return;
+        }
+
+        // Watched-file notifications update Roslyn asynchronously
+        // Opening/closing the document sends its saved text through the serialized document sync queue
+        await OpenDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+        await CloseDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsCSharpFile(string path) =>
+        path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith(".csx", StringComparison.OrdinalIgnoreCase);
+
     private async Task CloseDocumentAsync(string path, CancellationToken cancellationToken)
     {
         await NotifyAsync(
@@ -318,6 +339,8 @@ internal sealed partial class RoslynSession
 
     private async Task NotifyFileChangesAsync(
         Dictionary<string, FileStamp> current,
+        HashSet<string> changedPaths,
+        bool forceAllChanges,
         CancellationToken cancellationToken
     )
     {
@@ -328,7 +351,7 @@ internal sealed partial class RoslynSession
             {
                 changes.Add((JsonNode)FileChange(path, FileCreated));
             }
-            else if (stamp != previous)
+            else if (forceAllChanges || changedPaths.Contains(path) || stamp != previous)
             {
                 changes.Add((JsonNode)FileChange(path, FileChanged));
             }

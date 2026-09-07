@@ -66,7 +66,8 @@ internal sealed partial class RoslynSession
             .Keys.Where(path => _pendingFiles.TryRemove(path, out _))
             .ToList();
 
-        var rescan = Interlocked.Exchange(ref _scanRequested, 0) != 0;
+        var forceAllChanges = Interlocked.Exchange(ref _scanRequested, 0) != 0;
+        var rescan = forceAllChanges;
         if (!rescan)
         {
             rescan = changedPaths.Exists(path =>
@@ -79,10 +80,13 @@ internal sealed partial class RoslynSession
             if (rescan)
             {
                 var current = ScanWorkspace(cancellationToken);
-                if (!_watchRegistrations.IsEmpty)
-                {
-                    await NotifyFileChangesAsync(current, cancellationToken).ConfigureAwait(false);
-                }
+                await NotifyFileChangesAsync(
+                        current,
+                        changedPaths.ToHashSet(StringComparer.Ordinal),
+                        forceAllChanges,
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
 
                 _workspaceFiles = current;
             }
@@ -110,7 +114,7 @@ internal sealed partial class RoslynSession
         {
             cancellationToken.ThrowIfCancellationRequested();
             var file = new FileInfo(path);
-            var exists = _workspaceFiles.TryGetValue(path, out var previous);
+            var exists = _workspaceFiles.ContainsKey(path);
             FileStamp? current = file.Exists
                 ? new FileStamp(file.Length, file.LastWriteTimeUtc)
                 : null;
@@ -121,18 +125,16 @@ internal sealed partial class RoslynSession
                     changes.Add((JsonNode)FileChange(path, FileDeleted));
                 }
             }
-            else if (!exists || current.Value != previous)
+            else
             {
+                // A change signal remains valid when size and timestamp are preserved
                 changes.Add((JsonNode)FileChange(path, exists ? FileChanged : FileCreated));
             }
 
             updates.Add(path, current);
         }
 
-        if (!_watchRegistrations.IsEmpty)
-        {
-            await SendFileChangesAsync(changes, cancellationToken).ConfigureAwait(false);
-        }
+        await SendFileChangesAsync(changes, cancellationToken).ConfigureAwait(false);
 
         foreach (var (path, stamp) in updates)
         {
@@ -151,17 +153,32 @@ internal sealed partial class RoslynSession
     {
         foreach (var batch in changes.Chunk(FileChangeBatchSize))
         {
-            await NotifyAsync(
-                    LspMethods.WorkspaceDidChangeWatchedFiles,
-                    new JsonObject
-                    {
-                        ["changes"] = new JsonArray([
-                            .. batch.Select(static change => change?.DeepClone()),
-                        ]),
-                    },
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            if (!_watchRegistrations.IsEmpty)
+            {
+                await NotifyAsync(
+                        LspMethods.WorkspaceDidChangeWatchedFiles,
+                        new JsonObject
+                        {
+                            ["changes"] = new JsonArray([
+                                .. batch.Select(static change => change?.DeepClone()),
+                            ]),
+                        },
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false);
+            }
+
+            foreach (var change in batch)
+            {
+                if (change!["type"]!.GetValue<int>() is not FileDeleted)
+                {
+                    await SynchronizeClosedDocumentAsync(
+                            change["uri"]!.GetValue<string>(),
+                            cancellationToken
+                        )
+                        .ConfigureAwait(false);
+                }
+            }
         }
     }
 }
