@@ -143,8 +143,55 @@ public sealed class WorkspaceEditServiceTests : IDisposable
         );
 
         preview["fileCount"]!.GetValue<int>().Should().Be(1);
-        preview["files"]![0]!["after"]!.GetValue<string>().Should().Be("class B {}");
+        preview["files"]![0]!["changes"]![0]!["after"]!["text"]!
+            .GetValue<string>()
+            .Should()
+            .Be("class B {}");
         await AssertFileTextAsync(path, "class A {}");
+    }
+
+    [Fact]
+    public async Task GlobalPreviewBudgetDoesNotLimitAppliedFilesAsync()
+    {
+        const int fileCount = 64;
+        var before = new string('a', EditedDocument.MaximumPreviewCharacters + 100);
+        var after = new string('b', before.Length);
+        var changes = new JsonObject();
+        var paths = new string[fileCount];
+        for (var index = 0; index < fileCount; index++)
+        {
+            var path = await WriteAsync(
+                string.Create(CultureInfo.InvariantCulture, $"Source{index}.cs"),
+                before
+            );
+            paths[index] = path;
+            changes[new Uri(path).AbsoluteUri] = new JsonArray(
+                TextEdit(0, 0, 0, before.Length, after)
+            );
+        }
+
+        var edit = new JsonObject { ["changes"] = changes };
+        var service = CreateService();
+        var snapshot = await service.CaptureAsync(TestCancellation);
+
+        var preview = await service.PreviewAsync(edit, snapshot, TestCancellation);
+
+        preview["fileCount"]!.GetValue<int>().Should().Be(fileCount);
+        preview["files"]!.AsArray().Count.Should().BeInRange(1, fileCount - 1);
+        preview["filesTruncated"]!.GetValue<bool>().Should().BeTrue();
+        preview
+            .ToJsonString(BridgeJsonContext.Default.Options)
+            .Length.Should()
+            .BeLessThanOrEqualTo(EditPreview.MaximumResponseCharacters);
+        await AssertFileTextAsync(Path.Combine(_root, "Source0.cs"), before);
+
+        var applied = await service.ApplyAsync(edit, snapshot, TestCancellation);
+
+        applied["fileCount"]!.GetValue<int>().Should().Be(fileCount);
+        foreach (var path in paths)
+        {
+            await AssertFileTextAsync(path, after);
+        }
     }
 
     [Fact]

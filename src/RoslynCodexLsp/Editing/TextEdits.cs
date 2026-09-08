@@ -70,7 +70,7 @@ internal static class TextEdits
         return lines[line].Start + character;
     }
 
-    private static List<(int Start, int Length)> GetLines(string source)
+    internal static List<(int Start, int Length)> GetLines(string source)
     {
         var lines = new List<(int Start, int Length)>();
         var start = 0;

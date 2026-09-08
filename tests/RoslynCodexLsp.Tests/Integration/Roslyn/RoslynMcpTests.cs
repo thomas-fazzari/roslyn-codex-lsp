@@ -222,6 +222,18 @@ public sealed class RoslynMcpTests
         var original = await workspace.ReadFileAsync(ContractFile);
         original.Should().Contain("Greet(");
         original.Should().NotContain("Welcome(");
+        var previewChanges = preview["result"]!["files"]!
+            .AsArray()
+            .SelectMany(file => file!["changes"]!.AsArray());
+        previewChanges
+            .Should()
+            .NotBeEmpty()
+            .And.AllSatisfy(change =>
+            {
+                change!["before"]!["text"]!.GetValue<string>().Should().Contain("Greet");
+                change["after"]!["text"]!.GetValue<string>().Should().Contain("Welcome");
+                change["after"]!["startLine"]!.GetValue<int>().Should().BePositive();
+            });
 
         var applied = await workspace.CallAsync(ApplyProposal(LspAction.Rename, preview));
         AssertApplied(applied);

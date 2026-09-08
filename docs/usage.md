@@ -62,6 +62,12 @@ For code actions, request the listing, then send its `proposalId` and zero-based
 Apply the preview with its new `proposalId`. Set `endLine` and `endCharacter` when an action needs a selection.
 Some Roslyn commands reveal their edits only when executed.
 
+Each preview file contains `changes` with short `before` and `after` excerpts.
+Each excerpt gives its start and exclusive end position. Lines and UTF-16 characters start at **1**.
+Unchanged surrounding text is omitted. `previewTruncated` means some changes could not be fully shown within the comparison or display limits.
+The preview response is limited to 128 000 serialized characters. `filesTruncated` marks omitted files while `fileCount` keeps the full total.
+`commandPreviewTruncated` marks an omitted command description. These limits leave the proposed edit unchanged.
+
 Proposals expire after five minutes. If source files change, `stale_edit` requires a new preview.
 Reloading also discards proposals. Applied file creation, deletion and renaming reload Roslyn before the next request.
 

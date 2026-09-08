@@ -68,8 +68,7 @@ internal sealed class EditedDocument(string path, byte[]? original)
 
     public JsonObject Describe(string root)
     {
-        var before = Preview(Original);
-        var after = Preview(Content);
+        var preview = TextPreview.Create(Decode(Original), Decode(Content));
         return new JsonObject
         {
             ["path"] = System.IO.Path.GetRelativePath(root, Path),
@@ -85,36 +84,20 @@ internal sealed class EditedDocument(string path, byte[]? original)
             },
             ["beforeBytes"] = Original?.Length ?? 0,
             ["afterBytes"] = Content?.Length ?? 0,
-            ["before"] = before.Text,
-            ["after"] = after.Text,
-            ["previewTruncated"] = before.Truncated || after.Truncated,
+            ["changes"] = preview.Changes,
+            ["previewTruncated"] = preview.Truncated,
         };
     }
 
-    private static (string? Text, bool Truncated) Preview(byte[]? content)
+    private static string Decode(byte[]? content)
     {
         if (content is null)
         {
-            return (null, false);
+            return string.Empty;
         }
 
         var (encoding, preamble) = GetEncoding(content);
-        var bytes = content.AsSpan(preamble);
-        // Validate the whole input, including bytes outside the displayed prefix
-        var characterCount = encoding.GetCharCount(bytes);
-        if (characterCount <= MaximumPreviewCharacters)
-        {
-            return (encoding.GetString(bytes), false);
-        }
-
-        Span<char> preview = stackalloc char[MaximumPreviewCharacters];
-        encoding.GetDecoder().Convert(bytes, preview, flush: false, out _, out var length, out _);
-        if (length > 0 && char.IsHighSurrogate(preview[length - 1]))
-        {
-            length--;
-        }
-
-        return (new string(preview[..length]), true);
+        return encoding.GetString(content, preamble, content.Length - preamble);
     }
 
     private static (Encoding Encoding, int Preamble) GetEncoding(byte[] content)

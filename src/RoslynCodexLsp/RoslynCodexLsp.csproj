@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="RoslynCodexLsp.Tests" />
+    <PackageReference Include="DiffPlex" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" />
     <PackageReference Include="ModelContextProtocol" />

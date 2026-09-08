@@ -19,12 +19,16 @@ public sealed class EditedDocumentTests
         var encoding = Encoding.GetEncoding(encodingName);
         var prefix = new string('a', EditedDocument.MaximumPreviewCharacters - 1);
         byte[] bytes = [.. encoding.GetPreamble(), .. encoding.GetBytes(prefix + "😀tail")];
-        var document = new EditedDocument("Source.cs", bytes);
+        var replacement = new string('b', prefix.Length);
+        var document = new EditedDocument("Source.cs", bytes)
+        {
+            Content = [.. encoding.GetPreamble(), .. encoding.GetBytes(replacement + "😀tail")],
+        };
 
         var result = document.Describe(".");
 
-        result["before"]!.GetValue<string>().Should().Be(prefix);
-        result["after"]!.GetValue<string>().Should().Be(prefix);
+        result["changes"]![0]!["before"]!["text"]!.GetValue<string>().Should().Be(prefix);
+        result["changes"]![0]!["after"]!["text"]!.GetValue<string>().Should().Be(replacement);
         result["previewTruncated"]!.GetValue<bool>().Should().BeTrue();
     }
 

@@ -89,9 +89,10 @@ public sealed class CommandEditsTests : IDisposable
         File.Exists(Path.Combine(_root, "Missing.cs")).Should().BeFalse();
     }
 
-    [Fact]
+    [Fact(Timeout = BridgeOptions.DefaultRequestTimeoutSeconds * 1_000)]
     public async Task ConcurrentCallbacksApplyAndCaptureInOrderAsync()
     {
+        var cancellationToken = TestContext.Current.CancellationToken;
         var firstPath = await WriteAsync("First.cs", "class A {}");
         var secondPath = await WriteAsync("Second.cs", "class B {}");
         var service = CreateService();
@@ -125,7 +126,7 @@ public sealed class CommandEditsTests : IDisposable
             Changes(firstPath, TextEdit(0, 6, 0, 7, "Changed")),
             TestCancellation
         );
-        await firstCaptureStarted.Task.WaitAsync(TestCancellation);
+        await firstCaptureStarted.Task.WaitAsync(cancellationToken);
         var second = commandEdits.ApplyAsync(
             Changes(secondPath, TextEdit(0, 6, 0, 7, "Changed")),
             TestCancellation

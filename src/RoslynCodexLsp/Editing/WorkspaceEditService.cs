@@ -26,7 +26,7 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
     {
         var documents = await PlanAsync(edit, snapshot, cancellationToken);
         await EnsureCurrentAsync(snapshot, cancellationToken);
-        return Describe(documents, applied: false);
+        return EditPreview.Limit(DescribePreview(documents));
     }
 
     public async Task<JsonObject> ApplyAsync(
@@ -522,16 +522,18 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
         return document;
     }
 
-    private JsonObject Describe(List<EditedDocument> documents, bool applied)
+    private JsonObject DescribePreview(List<EditedDocument> documents)
     {
-        var changed = documents.Where(document => document.Changed).ToList();
+        var files = documents
+            .Where(document => document.Changed)
+            .Select(document => document.Describe(paths.Root))
+            .ToArray();
         return new JsonObject
         {
-            ["applied"] = applied,
-            ["fileCount"] = changed.Count,
-            ["files"] = new JsonArray(
-                changed.Select(document => (JsonNode)document.Describe(paths.Root)).ToArray()
-            ),
+            ["applied"] = false,
+            ["fileCount"] = files.Length,
+            ["files"] = new JsonArray(files),
+            ["previewTruncated"] = files.Any(file => file["previewTruncated"]!.GetValue<bool>()),
         };
     }
 
