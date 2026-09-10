@@ -10,7 +10,7 @@
 !/AGENTS.md
 !/README.md
 !/CHANGELOG.md
-!/Makefile
+!/justfile
 !/CodeMetricsConfig.txt
 !/Directory.Build.props
 !/Directory.Packages.props

@@ -10,19 +10,19 @@ namespace RoslynCodexLsp.Tests.Integration.Roslyn;
 
 /// <summary>
 /// Tests the MCP bridge against the real Roslyn language server in temporary workspaces.
-/// These tests are explicit and are excluded from make test and make check.
+/// These tests are explicit and are excluded from just test and just check.
 /// </summary>
 /// <remarks>
 /// Requires dotnet and roslyn-language-server on PATH. To add local executable directories,
 /// copy .env.copyme to .env and set EXTRA_PATH. From the repository root, run:
 /// <code>
-/// make test-integration
+/// just test-integration
 /// </code>
 /// The command builds the project. The tests restore their fixtures, launch Roslyn,
 /// and delete their temporary workspaces when finished.
 /// To test a published native bridge, set its absolute executable path:
 /// <code>
-/// ROSLYN_CODEX_TEST_EXECUTABLE=/absolute/path/RoslynCodexLsp make test-integration
+/// ROSLYN_CODEX_TEST_EXECUTABLE=/absolute/path/RoslynCodexLsp just test-integration
 /// </code>
 /// </remarks>
 public sealed class RoslynMcpTests

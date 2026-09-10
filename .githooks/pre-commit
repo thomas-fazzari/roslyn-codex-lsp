@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 cd "$(git rev-parse --show-toplevel)"
-exec make lint-auto
+exec just tooling::auto

@@ -6,7 +6,4 @@ case "$RUNNER_OS" in
     sudo apt-get update
     sudo apt-get install --yes clang zlib1g-dev
     ;;
-  Windows)
-    choco install make --yes --no-progress
-    ;;
 esac

@@ -1,27 +1,33 @@
 # Development
 
-Prerequisites: Git, Make, .NET SDK 10.0.400 and Bun 1.4.2. Run commands from the repository root.
+Prerequisites: Git, Bash, [just](https://just.systems) 1.58.0, .NET SDK 10.0.400 and Bun 1.4.2.
+On Windows, use Git Bash. Run commands from the repository root.
 
 ```sh
-make install
-make check
+just install
+just check
 ```
 
 ## Commands
 
 | Command                 | Purpose                                                          |
 | ----------------------- | ---------------------------------------------------------------- |
-| `make build`            | Build the bridge with analyzers                                  |
-| `make check`            | Check formatting, build documentation and C#, and run unit tests |
-| `make test-integration` | Run explicit tests against the real Roslyn server                |
-| `make format`           | Format C#, Markdown and tooling                                  |
-| `make lint-auto`        | Check staged files, or local changes if nothing is staged        |
+| `just build`            | Build the bridge with analyzers                                  |
+| `just check`            | Check formatting, build documentation and C#, and run unit tests |
+| `just test-integration` | Run explicit tests against the real Roslyn server                |
+| `just format`           | Format task recipes, C#, Markdown and tooling                    |
+| `just tooling::auto`    | Check staged files, or local changes if nothing is staged        |
 
-Builds use Debug by default. Add `CONFIGURATION=Release` for a release build.
+Run `just` to list commands, including the `backend`, `docs`, `tooling` and `ci` modules.
+For example, `just docs::dev` serves the documentation and `just tooling::hooks-install` enables Git hooks.
+
+Builds use Debug by default. Run `CONFIGURATION=Release just build` for a release build.
 Stop any bridge process using the build output before rebuilding it.
 
 Copy `.env.copyme` to `.env` and set `EXTRA_PATH` if executable directories are missing from `PATH`.
-These settings apply to Make commands. Codex uses its own MCP environment.
+These settings apply to just commands. Existing environment variables take precedence over `.env`.
+Set `DOTNET`, `BUN` or `TEST_ARGS` in the environment to override executables or add test arguments.
+Codex uses its own MCP environment.
 
 ## Tests
 
@@ -38,7 +44,7 @@ Integration tests copy them into temporary C# projects, so deliberate errors do 
 | ---------------------------- | -------------------------------------------- |
 | `src/RoslynCodexLsp`         | MCP tool, Roslyn session and workspace edits |
 | `tests/RoslynCodexLsp.Tests` | Unit tests, integration tests and fixtures   |
-| `eng`                        | Make targets and tooling scripts             |
+| `eng`                        | Just modules and tooling scripts             |
 | `docs`                       | VitePress pages and configuration            |
 
 The bridge uses the official [Model Context Protocol (MCP) SDK](https://csharp.sdk.modelcontextprotocol.io/) and [StreamJsonRpc](https://microsoft.github.io/vs-streamjsonrpc/).
@@ -47,10 +53,10 @@ Protocol messages use standard output. Logs use standard error.
 ## Native builds and releases
 
 Native AOT is enabled in the bridge project. Tests run on the .NET runtime.
-Publish with `make publish RUNTIME_ID=osx-arm64`, using the runtime identifier for your platform. Output goes to `artifacts/native`.
+Publish with `RUNTIME_ID=osx-arm64 just backend::publish`, using the runtime identifier for your platform. Output goes to `artifacts/native`.
 Native compilation requires the [platform build tools](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
 
-Set `ROSLYN_CODEX_TEST_EXECUTABLE` to the absolute path of the published executable, then run `make test-integration` to test it against Roslyn.
+Set `ROSLYN_CODEX_TEST_EXECUTABLE` to the absolute path of the published executable, then run `just test-integration` to test it against Roslyn.
 
 The build workflow validates all five release targets. Its scripts live in `eng/ci`.
 Push a tag such as `v0.1.0` to publish a release after all checks pass.
