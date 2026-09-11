@@ -177,6 +177,9 @@ if [[ "$install_skill" == true ]]; then
   curl --fail --silent --show-error --location \
     "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" \
     --output "$temporary_directory/SKILL.md"
+  curl --fail --silent --show-error --location \
+    "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/agents/openai.yaml" \
+    --output "$temporary_directory/openai.yaml"
 fi
 
 mkdir -p "$install_directory"
@@ -203,8 +206,9 @@ cp "$temporary_directory/bridge/RoslynCodexLsp" "$bridge_directory/RoslynCodexLs
 mv -f "$bridge_directory/RoslynCodexLsp.new" "$bridge_directory/RoslynCodexLsp"
 cp "$temporary_directory/bridge/LICENSE" "$bridge_directory/LICENSE"
 if [[ "$install_skill" == true ]]; then
-  mkdir -p "$skill_directory"
+  mkdir -p "$skill_directory/agents"
   cp "$temporary_directory/SKILL.md" "$skill_directory/SKILL.md"
+  cp "$temporary_directory/openai.yaml" "$skill_directory/agents/openai.yaml"
 fi
 
 printf '🔗 Registering the global Codex MCP server...\n'

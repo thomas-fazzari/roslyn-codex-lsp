@@ -1,0 +1,7 @@
+interface:
+  display_name: "Roslyn MCP"
+  short_description: "Navigate, diagnose, and edit C# with Roslyn"
+  default_prompt: "Use $roslyn-lsp to inspect this C# code with Roslyn diagnostics and symbol navigation."
+
+policy:
+  allow_implicit_invocation: true

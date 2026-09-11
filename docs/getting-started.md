@@ -18,7 +18,8 @@ Windows x64, in PowerShell:
 
 The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in Codex.
 Before making changes, it asks for an installation directory and offers an optional skill for C# diagnostics, navigation and edits.
-The skill comes from `master`, independently of the binary version.
+The skill includes `SKILL.md` and `agents/openai.yaml`. Both come from `master`, independently of the binary version.
+Skill updates do not require a new binary release.
 Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
 Windows uses `%LOCALAPPDATA%\roslyn-codex-lsp`.
 Run the same command to update the bridge and skill.

@@ -45,6 +45,8 @@
 !/skills/
 !/skills/roslyn-lsp/
 !/skills/roslyn-lsp/SKILL.md
+!/skills/roslyn-lsp/agents/
+!/skills/roslyn-lsp/agents/openai.yaml
 
 # Generated files and local settings stay ignored inside allowed dirs
 **/bin/

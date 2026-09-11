@@ -142,10 +142,14 @@ try {
 
     if ($installSkill) {
         $skillFile = Join-Path $temporaryDirectory 'SKILL.md'
+        $skillMetadata = Join-Path $temporaryDirectory 'openai.yaml'
         Write-Host '📚 Downloading the latest Codex usage skill...'
         Invoke-WebRequest -UseBasicParsing `
             -Uri "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" `
             -OutFile $skillFile
+        Invoke-WebRequest -UseBasicParsing `
+            -Uri "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/agents/openai.yaml" `
+            -OutFile $skillMetadata
     }
 
     $InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
@@ -177,8 +181,10 @@ try {
     Copy-Item -LiteralPath $executable -Destination $installedExecutable -Force
     Copy-Item -LiteralPath (Join-Path $extractedDirectory 'LICENSE') -Destination $bridgeDirectory -Force
     if ($installSkill) {
-        [System.IO.Directory]::CreateDirectory($skillDirectory) | Out-Null
+        $skillAgentsDirectory = Join-Path $skillDirectory 'agents'
+        [System.IO.Directory]::CreateDirectory($skillAgentsDirectory) | Out-Null
         Copy-Item -LiteralPath $skillFile -Destination (Join-Path $skillDirectory 'SKILL.md') -Force
+        Copy-Item -LiteralPath $skillMetadata -Destination (Join-Path $skillAgentsDirectory 'openai.yaml') -Force
     }
 
     Write-Host '🔗 Registering the global Codex MCP server...'
