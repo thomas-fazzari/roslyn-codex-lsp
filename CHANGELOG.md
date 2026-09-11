@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Omit clean files from diagnostic results and report scanned file counts.
+- Group navigation results by file with one-based positions and occurrence counts (raw requests keep the LSP format).
+- Reduce response and edit preview limits to 32 000 characters.
+- Reduce the default result limit to 50 and the maximum to 250.
+
 ## 0.1.1
 
 - Show changed ranges and positions in edit previews, with bounded output.

@@ -86,7 +86,7 @@ internal sealed class LspChanges(
                 parameters,
                 cancellationToken
             ) as JsonObject
-            ?? new JsonObject();
+            ?? [];
         var changes = ToDocumentChanges(edit);
         changes.Add(
             (JsonNode)
@@ -224,7 +224,7 @@ internal sealed class LspChanges(
             );
         }
 
-        await edits.PreviewAsync(new JsonObject(), pending.Snapshot, cancellationToken);
+        await edits.PreviewAsync([], pending.Snapshot, cancellationToken);
         var action =
             actions[request.ActionIndex.Value]?.DeepClone() as JsonObject
             ?? throw new InvalidOperationException("The code action is invalid.");
@@ -262,7 +262,7 @@ internal sealed class LspChanges(
         CancellationToken cancellationToken
     )
     {
-        var edit = change.Edit ?? new JsonObject();
+        var edit = change.Edit ?? [];
         if (!apply)
         {
             var preview = await edits.PreviewAsync(edit, change.Snapshot, cancellationToken);

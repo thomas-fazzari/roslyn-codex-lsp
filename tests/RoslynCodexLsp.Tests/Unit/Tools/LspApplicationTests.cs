@@ -139,7 +139,7 @@ public sealed class LspApplicationTests
                 snapshot,
                 edit,
                 Command: null,
-                FileRename: new JsonObject()
+                FileRename: []
             );
 
             var apply = () => changes.CompleteAsync(pending, apply: true, cancellationToken);

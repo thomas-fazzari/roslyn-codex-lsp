@@ -42,7 +42,7 @@ Some command-based actions reveal their edits only during execution.
 Each preview file contains changes with before and after excerpts around edited text.
 startLine, startCharacter, endLine and endCharacter use one-based UTF-16 positions.
 The end position is exclusive. previewTruncated marks an incomplete view of the changes.
-The serialized preview is limited to 128 000 characters. filesTruncated marks omitted
+The serialized preview is limited to 32 000 characters. filesTruncated marks omitted
 files, and commandPreviewTruncated marks an omitted command description.
 These display limits do not change the edit stored by proposalId.
 

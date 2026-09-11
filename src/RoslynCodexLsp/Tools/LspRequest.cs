@@ -8,8 +8,8 @@ namespace RoslynCodexLsp.Tools;
 
 internal sealed record LspRequest(int Limit = LspRequest.DefaultResultLimit)
 {
-    internal const int DefaultResultLimit = 100;
-    internal const int MaximumResultLimit = 1000;
+    internal const int DefaultResultLimit = 50;
+    internal const int MaximumResultLimit = 250;
 
     [Description("LSP operation to perform.")]
     public required LspAction Action { get; init; }
@@ -56,8 +56,6 @@ internal sealed record LspRequest(int Limit = LspRequest.DefaultResultLimit)
     [Description("Raw LSP parameters. Positions here follow LSP's zero-based convention.")]
     public JsonObject? Parameters { get; init; }
 
-    [Description(
-        "Maximum returned diagnostics or results, from 1 to 1000. Truncation is explicit."
-    )]
+    [Description("Maximum returned diagnostics or results, from 1 to 250. Truncation is explicit.")]
     public int Limit { get; init; } = Limit;
 }

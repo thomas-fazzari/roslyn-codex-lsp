@@ -26,9 +26,14 @@ Use symbols to locate a declaration, then navigation for semantic relationships.
 
 RESULTS
 -------
-Results preserve Roslyn's LSP shapes, which may contain locations, location links,
-symbol arrays or hover content. Read URI and range fields from the actual result.
-Returned positions are zero-based. Convert them before another positional call.
-limit defaults to 100 and accepts 1 through 1000. Inspect truncation indicators
-before claiming a complete reference or implementation list.
-An empty result means Roslyn returned no matches for this request.
+Definition, type_definition, implementation and references return:
+{"items":[{"file":"src/Foo.cs","positions":[[42,17],[81,9]]}],"total":2,"truncated":false}
+Positions are [line, character], both one-based, with UTF-16 characters.
+Files inside the workspace use relative paths. External and generated locations
+keep their absolute URI. Location links use the target selection start.
+total counts occurrences before limiting. limit caps occurrences, not files.
+limit defaults to 50 and accepts 1 through 250. Inspect truncated before claiming
+a complete reference or implementation list. No matches returns items: [].
+
+Hover and symbols preserve Roslyn's LSP shapes and zero-based positions.
+Use action=request for raw LSP locations, full ranges and location link metadata.

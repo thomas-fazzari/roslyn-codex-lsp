@@ -33,7 +33,7 @@ internal sealed partial class LspTool(
     internal const string IoErrorCode = "io_error";
     internal const string ResultTooLargeErrorCode = "result_too_large";
 
-    internal const int MaximumResponseCharacters = 256_000;
+    internal const int MaximumResponseCharacters = 32_000;
     private const int MaximumErrorCharacters = 2_000;
 
     private static readonly FrozenSet<string> _readOnlyMethods = new[]
@@ -250,10 +250,7 @@ internal sealed partial class LspTool(
 
         if (request.Method is LspMethods.WorkspaceExecuteCommand)
         {
-            return await changes.ExecuteCommandAsync(
-                request.Parameters ?? new JsonObject(),
-                cancellationToken
-            );
+            return await changes.ExecuteCommandAsync(request.Parameters ?? [], cancellationToken);
         }
 
         return await session.RequestAsync(request.Method, request.Parameters, cancellationToken);

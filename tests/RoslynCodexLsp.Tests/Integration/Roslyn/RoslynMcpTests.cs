@@ -4,6 +4,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
+using RoslynCodexLsp.Lsp;
 using RoslynCodexLsp.Tools;
 
 namespace RoslynCodexLsp.Tests.Integration.Roslyn;
@@ -62,26 +63,60 @@ public sealed class RoslynMcpTests
             .Should()
             .Contain(item => Code(item) == "CS8603" && item["severity"]!.GetValue<int>() == 2);
 
-        var definition = await workspace.CallAsync(
-            await workspace.AtAsync(LspAction.Definition, ConsumerFile, "Greet(")
+        var definitionRequest = await workspace.AtAsync(
+            LspAction.Definition,
+            ConsumerFile,
+            "Greet("
         );
-        AssertSingleLocation(definition, workspace.FilePath(ContractFile));
+        var definition = await workspace.CallAsync(definitionRequest);
+        AssertSingleLocation(definition, ContractFile);
+        var target = await workspace.AtAsync(LspAction.Definition, ContractFile, "Greet(");
+        var position = definition["result"]!["items"]![0]!["positions"]![0]!;
+        position[0]!.GetValue<int>().Should().Be(target.Line);
+        position[1]!.GetValue<int>().Should().Be(target.Character);
+        var raw = await workspace.CallAsync(
+            new LspRequest
+            {
+                Action = LspAction.Request,
+                Method = LspMethods.TextDocumentDefinition,
+                Parameters = new JsonObject
+                {
+                    ["textDocument"] = new JsonObject
+                    {
+                        ["uri"] = new Uri(workspace.FilePath(ConsumerFile)).AbsoluteUri,
+                    },
+                    ["position"] = new JsonObject
+                    {
+                        ["line"] = definitionRequest.Line - 1,
+                        ["character"] = definitionRequest.Character - 1,
+                    },
+                },
+            }
+        );
+        var rawLocation = raw["result"]!.AsArray().Should().ContainSingle().Which!;
+        (rawLocation["uri"] ?? rawLocation["targetUri"])!
+            .GetValue<string>()
+            .Should()
+            .Be(new Uri(workspace.FilePath(ContractFile)).AbsoluteUri);
+        var rawStart = (rawLocation["range"] ?? rawLocation["targetSelectionRange"])!["start"]!;
+        rawStart["line"]!.GetValue<int>().Should().Be(target.Line - 1);
+        rawStart["character"]!.GetValue<int>().Should().Be(target.Character - 1);
 
         var typeDefinition = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.TypeDefinition, ConsumerFile, "greeter.Greet")
         );
-        AssertSingleLocation(typeDefinition, workspace.FilePath(ContractFile));
+        AssertSingleLocation(typeDefinition, ContractFile);
 
         var implementation = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Implementation, ContractFile, "Greet(")
         );
-        AssertSingleLocation(implementation, workspace.FilePath(ImplementationFile));
+        AssertSingleLocation(implementation, ImplementationFile);
 
         var references = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.References, ContractFile, "Greet(")
         );
-        Locations(references).Should().Contain(new Uri(workspace.FilePath(ConsumerFile)));
-        Locations(references).Should().NotContain(new Uri(workspace.FilePath(OtherGreeterFile)));
+        Locations(references).Should().Contain(ConsumerFile);
+        Locations(references).Should().NotContain(OtherGreeterFile);
 
         var hover = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Hover, ConsumerFile, "Greet(")
@@ -112,16 +147,61 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task DiagnosticsOmitCleanFilesAndKeepCountsWhenTruncatedAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+
+        const string cleanFile = "Contracts/Clean.cs";
+        await workspace.WriteFileAsync(cleanFile, string.Empty);
+        var clean = await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = cleanFile }
+        );
+        var cleanResult = clean["result"]!;
+        cleanResult["filesChecked"]!.GetValue<int>().Should().Be(1);
+        cleanResult["filesWithDiagnostics"]!.GetValue<int>().Should().Be(0);
+        cleanResult["diagnostics"]!.AsArray().Should().BeEmpty();
+        cleanResult["total"]!.GetValue<int>().Should().Be(0);
+        cleanResult["complete"]!.GetValue<bool>().Should().BeTrue();
+        cleanResult["truncated"]!.GetValue<bool>().Should().BeFalse();
+
+        var request = new LspRequest(LspRequest.MaximumResultLimit)
+        {
+            Action = LspAction.Diagnostics,
+            File = "Application/*.cs",
+        };
+        var full = (await workspace.CallAsync(request))["result"]!;
+        var limited = (await workspace.CallAsync(request with { Limit = 1 }))["result"]!;
+
+        full["filesChecked"]!.GetValue<int>().Should().Be(4);
+        full["truncated"]!.GetValue<bool>().Should().BeFalse();
+        full["filesWithDiagnostics"]!
+            .GetValue<int>()
+            .Should()
+            .Be(full["diagnostics"]!.AsArray().Count);
+
+        foreach (var field in new[] { "filesChecked", "filesWithDiagnostics", "total" })
+        {
+            limited[field]!.GetValue<int>().Should().Be(full[field]!.GetValue<int>());
+        }
+
+        limited["complete"]!.GetValue<bool>().Should().BeTrue();
+        limited["truncated"]!.GetValue<bool>().Should().BeTrue();
+        limited["diagnostics"]!.AsArray().Should().ContainSingle();
+        limited["diagnostics"]![0]!["diagnostics"]!.AsArray().Should().ContainSingle();
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task RefreshesUnopenedFilesWithUnchangedMetadataBeforeRenameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
         var request = await workspace.AtAsync(LspAction.References, ContractFile, "Greet(");
         var consumerPath = workspace.FilePath(ConsumerFile);
-        var consumerUri = new Uri(consumerPath);
 
         var references = await workspace.CallAsync(request);
-        Locations(references).Should().Contain(consumerUri);
+        Locations(references).Should().Contain(ConsumerFile);
 
         var original = await workspace.ReadFileAsync(ConsumerFile);
         var changed = original.Replace(
@@ -155,7 +235,7 @@ public sealed class RoslynMcpTests
             .BeEquivalentTo([ContractFile, ImplementationFile]);
 
         var refreshed = await workspace.CallAsync(request);
-        Locations(refreshed).Should().NotContain(consumerUri);
+        Locations(refreshed).Should().NotContain(ConsumerFile);
         (await workspace.ReadFileAsync(ConsumerFile)).Should().Be(changed);
     }
 
@@ -203,7 +283,7 @@ public sealed class RoslynMcpTests
         var implementation = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Implementation, ContractFile, "Greet(")
         );
-        AssertSingleLocation(implementation, workspace.FilePath(destination));
+        AssertSingleLocation(implementation, destination);
         TestContext.Current.TestOutputHelper!.WriteLine(
             "Roslyn advertised file rename support. Preview, apply and navigation to the new path passed."
         );
@@ -333,7 +413,7 @@ public sealed class RoslynMcpTests
             .Should()
             .ContainSingle()
             .Which.Should()
-            .Be(new Uri(expectedFile), response.ToJsonString());
+            .Be(expectedFile, response.ToJsonString());
 
     private static async Task<JsonObject[]> DiagnosticsAsync(RoslynTestWorkspace workspace)
     {
@@ -342,7 +422,7 @@ public sealed class RoslynMcpTests
         );
         return
         [
-            .. response["result"]!["files"]!
+            .. response["result"]!["diagnostics"]!
                 .AsArray()
                 .SelectMany(file => file!["diagnostics"]!.AsArray())
                 .Select(item => item!.AsObject()),
@@ -368,12 +448,10 @@ public sealed class RoslynMcpTests
         }
     }
 
-    private static Uri[] Locations(JsonObject response) =>
+    private static string[] Locations(JsonObject response) =>
         [
-            .. response["result"]!
+            .. response["result"]!["items"]!
                 .AsArray()
-                .Select(location => new Uri(
-                    (location!["uri"] ?? location["targetUri"])!.GetValue<string>()
-                )),
+                .Select(location => location!["file"]!.GetValue<string>()),
         ];
 }

@@ -39,10 +39,18 @@ Pass arguments inside `request`:
 ```
 
 Paths are relative to the workspace. Input coordinates start at **1**, with characters counted as UTF-16 code units.
-Returned LSP locations and raw request coordinates start at **0**.
+Navigation results group occurrences by file in `items`, with one-based `[line, character]` pairs in `positions`.
+This applies to `definition`, `type_definition`, `implementation` and `references`.
+`total` counts occurrences before limiting, and `truncated` reports omitted occurrences.
+Workspace files use relative paths. External and generated locations keep their absolute URI.
+Location links use the target selection start. Use `action=request` for full LSP ranges and metadata.
+Hover, symbols, diagnostic ranges and raw request coordinates keep zero-based LSP positions.
 
 For diagnostics, omit `file` to scan C# files or use a glob such as `src/**/*.cs`.
-`limit` defaults to 100 and accepts 1 to 1000. Narrow the query if results are truncated or too large.
+`filesChecked` counts scanned files. `filesWithDiagnostics` counts files with diagnostics before limiting.
+`diagnostics` contains only file entries with returned diagnostics. `total` counts all diagnostics found.
+`complete` reports a completed scan. When `truncated` is true, omitted files are not necessarily clean.
+`limit` defaults to 50 and accepts 1 to 250. Narrow the query if results are truncated or too large.
 
 ## Preview and apply
 
@@ -65,7 +73,7 @@ Some Roslyn commands reveal their edits only when executed.
 Each preview file contains `changes` with short `before` and `after` excerpts.
 Each excerpt gives its start and exclusive end position. Lines and UTF-16 characters start at **1**.
 Unchanged surrounding text is omitted. `previewTruncated` means some changes could not be fully shown within the comparison or display limits.
-The preview response is limited to 128 000 serialized characters. `filesTruncated` marks omitted files while `fileCount` keeps the full total.
+The preview response is limited to 32 000 serialized characters. `filesTruncated` marks omitted files while `fileCount` keeps the full total.
 `commandPreviewTruncated` marks an omitted command description. These limits leave the proposed edit unchanged.
 
 Proposals expire after five minutes. If source files change, `stale_edit` requires a new preview.

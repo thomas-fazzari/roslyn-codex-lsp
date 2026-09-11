@@ -19,7 +19,10 @@ selects all C# files. Split large audits by project or directory.
 
 RESULT
 ------
-result.files: entries containing file and diagnostics.
+result.filesChecked: number of files scanned.
+result.filesWithDiagnostics: number of files with diagnostics before limiting.
+result.diagnostics: entries containing file and a nonempty diagnostics array.
+Clean files and files with no diagnostics left within the limit are omitted.
 result.complete: whether the report is complete.
 result.total: diagnostic count before the output limit.
 result.truncated: whether diagnostics were omitted from the returned arrays.
@@ -31,11 +34,11 @@ Convert the start line and character to one-based values for code_actions.
 
 LIMITS AND VERIFICATION
 -----------------------
-limit defaults to 100 and accepts 1 through 1000 across the whole response.
+limit defaults to 50 and accepts 1 through 250 across the whole response.
 It caps returned items, not the files analyzed or the analysis time.
 A scan accepts at most 1000 files. Narrow the glob if it exceeds this limit.
 If truncated is true, split the selection into narrower requests.
-Do not interpret an empty per-file array as clean when the result is truncated.
+Omitted files are not necessarily clean when the result is truncated.
 Report the checked scope. A failed, incomplete or truncated response cannot
 establish that the workspace is clean.
 After applying changes, rerun diagnostics on the affected files.

@@ -7,7 +7,7 @@ namespace RoslynCodexLsp.Editing;
 
 internal static class EditPreview
 {
-    internal const int MaximumResponseCharacters = 128_000;
+    internal const int MaximumResponseCharacters = 32_000;
 
     public static JsonObject Limit(JsonObject preview)
     {
