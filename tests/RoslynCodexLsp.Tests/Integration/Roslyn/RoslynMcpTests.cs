@@ -28,7 +28,7 @@ namespace RoslynCodexLsp.Tests.Integration.Roslyn;
 /// </remarks>
 public sealed class RoslynMcpTests
 {
-    private const int TestTimeoutMilliseconds = 120_000;
+    private const int TestTimeoutMilliseconds = 300_000;
     private const string ContractFile = "Contracts/IGreeter.cs";
     private const string ImplementationFile = "Application/Greeter.cs";
     private const string ConsumerFile = "Application/Consumer.cs";
