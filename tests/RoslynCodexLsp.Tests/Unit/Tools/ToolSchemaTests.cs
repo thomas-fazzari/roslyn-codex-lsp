@@ -53,7 +53,18 @@ public sealed class ToolSchemaTests
     [InlineData(
         NavigateTool.Name,
         new[] { "action", "file", "line", "character" },
-        new[] { "definition", "type_definition", "implementation", "references", "hover" }
+        new[]
+        {
+            "definition",
+            "type_definition",
+            "implementation",
+            "references",
+            "hover",
+            "callers",
+            "callees",
+            "supertypes",
+            "subtypes",
+        }
     )]
     [InlineData(SymbolsTool.Name, new string[0], null)]
     [InlineData(

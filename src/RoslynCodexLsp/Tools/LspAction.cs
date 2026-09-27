@@ -49,4 +49,16 @@ internal enum LspAction
 
     [JsonStringEnumMemberName("request")]
     Request = 13,
+
+    [JsonStringEnumMemberName("callers")]
+    Callers = 14,
+
+    [JsonStringEnumMemberName("callees")]
+    Callees = 15,
+
+    [JsonStringEnumMemberName("supertypes")]
+    Supertypes = 16,
+
+    [JsonStringEnumMemberName("subtypes")]
+    Subtypes = 17,
 }

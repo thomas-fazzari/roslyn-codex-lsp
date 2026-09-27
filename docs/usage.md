@@ -14,13 +14,13 @@ Available fixes and refactorings depend on the installed Roslyn version and proj
 
 ## Tools
 
-| Tool          | Arguments                                                                                                        | Result                                                                        |
-| ------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `diagnostics` | `file` path or glob                                                                                              | Errors, warnings and suggestions                                              |
-| `navigate`    | `action` (`definition`, `type_definition`, `implementation`, `references`, `hover`), `file`, `line`, `character` | Locations or symbol information                                               |
-| `symbols`     | `file` or `query`                                                                                                | Document or workspace symbols                                                 |
-| `edit`        | `action` (`rename`, `rename_file`, `code_actions`) and its inputs                                                | Edit previews, then applied changes                                           |
-| `lsp`         | `action` (`status`, `capabilities`, `reload`, `request`), `method`, `parameters`                                 | Session state, a fresh session or a raw Language Server Protocol (LSP) result |
+| Tool          | Arguments                                                                                                                                                        | Result                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `diagnostics` | `file` path or glob, `severity`                                                                                                                                  | Errors, warnings and suggestions                                              |
+| `navigate`    | `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), `file`, `line`, `character` | Locations, related symbols or hover text                                      |
+| `symbols`     | `file` or `query`                                                                                                                                                | Document or workspace symbols                                                 |
+| `edit`        | `action` (`rename`, `rename_file`, `code_actions`) and its inputs                                                                                                | Edit previews, then applied changes                                           |
+| `lsp`         | `action` (`status`, `capabilities`, `reload`, `request`), `method`, `parameters`                                                                                 | Session state, a fresh session or a raw Language Server Protocol (LSP) result |
 
 `diagnostics`, `navigate` and `symbols` are read-only. `edit` and `lsp` can write files.
 Arguments are passed directly to each tool:
@@ -35,12 +35,17 @@ This applies to `definition`, `type_definition`, `implementation` and `reference
 `total` counts occurrences before limiting, and `truncated` reports omitted occurrences.
 Workspace files use relative paths. External and generated locations keep their absolute URI.
 Location links use the target selection start. Use the `lsp` tool with `action=request` for full LSP ranges and metadata.
-Hover and symbols keep Roslyn's LSP shapes, with one-based positions.
+`callers`, `callees`, `supertypes` and `subtypes` return `items` of related symbols.
+Each symbol gives its `name`, `kind`, `file` and one-based `position`. Calls also list their call sites in `calls`.
+For `callers`, call sites are in the caller's file. For `callees`, they are in the requested file.
+`hover` returns its Markdown `text`. `symbols` returns `items` with the same symbol fields, nested in `children` for a file.
 Only raw requests keep zero-based LSP positions.
 
 For diagnostics, omit `file` to scan C# files or use a glob such as `src/**/*.cs`.
 `filesChecked` counts scanned files. `filesWithDiagnostics` counts files with diagnostics before limiting.
-`diagnostics` contains only file entries with returned diagnostics. `total` counts all diagnostics found.
+`diagnostics` contains only file entries with returned diagnostics. `total` counts all diagnostics found at the selected severity.
+`severity` defaults to `warning`, which reports errors and warnings. Set it to `information` or `hint` to include analyzer suggestions.
+`belowSeverity` counts the diagnostics left out by the severity filter.
 Each diagnostic gives its one-based start `line` and `character`, its `severity`, `code` and `message`.
 `complete` reports a completed scan. When `truncated` is true, omitted files are not necessarily clean.
 `limit` defaults to 50 and accepts 1 to 250. Narrow the query if results are truncated or too large.

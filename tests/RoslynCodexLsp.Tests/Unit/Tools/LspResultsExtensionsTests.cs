@@ -135,31 +135,111 @@ public sealed class LspResultsExtensionsTests
     }
 
     [Fact]
-    public void ConvertsNestedSymbolPositionsToOneBased()
+    public void CompactsNestedDocumentSymbols()
     {
         var symbols = new JsonArray(
             new JsonObject
             {
-                ["name"] = "Greeter",
-                ["range"] = Range(0, 0),
-                ["selectionRange"] = Range(0, 13),
+                ["name"] = "IGreeter",
+                ["detail"] = "IGreeter",
+                ["kind"] = 11,
+                ["range"] = Range(2, 0),
+                ["selectionRange"] = Range(2, 17),
                 ["children"] = new JsonArray(
                     new JsonObject
                     {
-                        ["name"] = "Greet",
-                        ["range"] = Range(2, 4),
-                        ["selectionRange"] = Range(2, 18),
+                        ["name"] = "Greet(string) : string",
+                        ["kind"] = 6,
+                        ["range"] = Range(4, 4),
+                        ["selectionRange"] = Range(4, 11),
+                        ["children"] = new JsonArray(),
                     }
                 ),
             }
         );
 
-        symbols.ToOneBasedPositions();
+        var result = symbols.ToCompactSymbols(_paths, LspRequest.DefaultResultLimit);
 
-        var child = symbols[0]!["children"]![0]!;
-        JsonNode.DeepEquals(symbols[0]!["selectionRange"], Range(1, 14)).Should().BeTrue();
-        JsonNode.DeepEquals(child["range"], Range(3, 5)).Should().BeTrue();
-        child["name"]!.GetValue<string>().Should().Be("Greet");
+        JsonNode
+            .DeepEquals(
+                result["items"],
+                JsonNode.Parse(
+                    """[{"name":"IGreeter","kind":"interface","position":[3,18],"children":[{"name":"Greet(string) : string","kind":"method","position":[5,12]}]}]"""
+                )
+            )
+            .Should()
+            .BeTrue(result.ToJsonString());
+    }
+
+    [Fact]
+    public void CompactsWorkspaceSymbolsWithRelativeFilesAndLimit()
+    {
+        var symbols = new JsonArray(
+            new JsonObject
+            {
+                ["name"] = "Greeter",
+                ["kind"] = 5,
+                ["location"] = Location("Application/Greeter.cs", 5, 21),
+                ["containerName"] = "Application",
+            },
+            new JsonObject { ["name"] = "Other", ["kind"] = 5 }
+        );
+
+        var result = symbols.ToCompactSymbols(_paths, 1);
+
+        result["total"]!.GetValue<int>().Should().Be(2);
+        result["truncated"]!.GetValue<bool>().Should().BeTrue();
+        JsonNode
+            .DeepEquals(
+                result["items"],
+                JsonNode.Parse(
+                    """[{"name":"Greeter","kind":"class","container":"Application","file":"Application/Greeter.cs","position":[6,22]}]"""
+                )
+            )
+            .Should()
+            .BeTrue(result.ToJsonString());
+    }
+
+    [Fact]
+    public void CompactsIncomingCallsWithCallSites()
+    {
+        var calls = new JsonArray(
+            new JsonObject
+            {
+                ["from"] = new JsonObject
+                {
+                    ["name"] = "Consumer.Run(IGreeter)",
+                    ["kind"] = 6,
+                    ["uri"] = Location("Consumer.cs", 0, 0)["uri"]!.DeepClone(),
+                    ["range"] = Range(6, 4),
+                    ["selectionRange"] = Range(6, 25),
+                },
+                ["fromRanges"] = new JsonArray(Range(6, 58), Range(7, 2)),
+            }
+        );
+
+        var result = calls.ToCompactHierarchy(_paths, LspRequest.DefaultResultLimit);
+
+        var item = result["items"]![0]!;
+        item["file"]!.GetValue<string>().Should().Be("Consumer.cs");
+        JsonNode.DeepEquals(item["position"], JsonNode.Parse("[7,26]")).Should().BeTrue();
+        JsonNode.DeepEquals(item["calls"], JsonNode.Parse("[[7,59],[8,3]]")).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("""{"kind":"markdown","value":"```csharp\nvoid Greet()\n```\n  \n"}""")]
+    [InlineData("""["```csharp\nvoid Greet()\n```"]""")]
+    public void ReducesHoverContentsToText(string contents)
+    {
+        var hover = new JsonObject
+        {
+            ["contents"] = JsonNode.Parse(contents),
+            ["range"] = Range(0, 0),
+        };
+
+        var result = hover.ToCompactHover();
+
+        result["text"]!.GetValue<string>().Should().Be("```csharp\nvoid Greet()\n```");
     }
 
     private static JsonObject Location(string file, int line, int character) =>

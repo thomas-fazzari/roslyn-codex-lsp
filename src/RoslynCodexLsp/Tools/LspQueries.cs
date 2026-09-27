@@ -17,6 +17,17 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
     )
     {
         var parameters = await PositionAsync(request, cancellationToken);
+        if (
+            request.Action
+            is LspAction.Callers
+                or LspAction.Callees
+                or LspAction.Supertypes
+                or LspAction.Subtypes
+        )
+        {
+            return await HierarchyAsync(request, parameters, cancellationToken);
+        }
+
         var method = request.Action switch
         {
             LspAction.Definition => LspMethods.TextDocumentDefinition,
@@ -34,8 +45,49 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
 
         var result = await session.RequestAsync(method, parameters, cancellationToken);
         return request.Action is LspAction.Hover
-            ? result.ToOneBasedPositions()
+            ? result.ToCompactHover()
             : result.ToCompactLocations(paths, request.Limit);
+    }
+
+    private async Task<JsonObject> HierarchyAsync(
+        LspRequest request,
+        JsonObject position,
+        CancellationToken cancellationToken
+    )
+    {
+        var (prepare, expand) = request.Action switch
+        {
+            LspAction.Callers => (
+                LspMethods.TextDocumentPrepareCallHierarchy,
+                LspMethods.CallHierarchyIncomingCalls
+            ),
+            LspAction.Callees => (
+                LspMethods.TextDocumentPrepareCallHierarchy,
+                LspMethods.CallHierarchyOutgoingCalls
+            ),
+            LspAction.Supertypes => (
+                LspMethods.TextDocumentPrepareTypeHierarchy,
+                LspMethods.TypeHierarchySupertypes
+            ),
+            _ => (LspMethods.TextDocumentPrepareTypeHierarchy, LspMethods.TypeHierarchySubtypes),
+        };
+        var related = new JsonArray();
+        var items = await session.RequestAsync(prepare, position, cancellationToken) as JsonArray;
+
+        foreach (var item in items ?? [])
+        {
+            var expanded = await session.RequestAsync(
+                expand,
+                new JsonObject { ["item"] = item!.DeepClone() },
+                cancellationToken
+            );
+            foreach (var entry in expanded as JsonArray ?? [])
+            {
+                related.Add(entry!.DeepClone());
+            }
+        }
+
+        return related.ToCompactHierarchy(paths, request.Limit);
     }
 
     public async Task<JsonNode?> SymbolsAsync(
@@ -50,7 +102,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
                 new JsonObject { ["query"] = request.Query ?? string.Empty },
                 cancellationToken
             );
-            return Limit(symbols.ToOneBasedPositions(), request.Limit);
+            return symbols.ToCompactSymbols(paths, request.Limit);
         }
 
         var uri = await session.OpenDocumentAsync(request.File, cancellationToken);
@@ -59,7 +111,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             Document(uri),
             cancellationToken
         );
-        return Limit(documentSymbols.ToOneBasedPositions(), request.Limit);
+        return documentSymbols.ToCompactSymbols(paths, request.Limit);
     }
 
     public async Task<JsonObject> DiagnosticsAsync(
@@ -79,6 +131,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
         var results = new JsonArray();
         var remaining = request.Limit;
         var total = 0;
+        var belowSeverity = 0;
         var filesWithDiagnostics = 0;
         foreach (var batch in files.Chunk(RoslynSession.MaximumOpenDocuments))
         {
@@ -93,7 +146,11 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             foreach (var (file, uri) in batch.Zip(uris))
             {
                 var report = await FileDiagnosticsAsync(uri, cancellationToken);
-                var diagnostics = report["items"] as JsonArray ?? [];
+                var reported = report["items"] as JsonArray ?? [];
+                var diagnostics = reported
+                    .Where(diagnostic => IsReported(diagnostic!, request.Severity))
+                    .ToList();
+                belowSeverity += reported.Count - diagnostics.Count;
                 total += diagnostics.Count;
                 if (diagnostics.Count == 0)
                 {
@@ -132,9 +189,14 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             ["diagnostics"] = results,
             ["complete"] = true,
             ["total"] = total,
+            ["belowSeverity"] = belowSeverity,
             ["truncated"] = total > request.Limit,
         };
     }
+
+    // LSP leaves a missing severity to the client. Reporting it as an error keeps it visible
+    private static bool IsReported(JsonNode diagnostic, DiagnosticSeverity minimum) =>
+        (diagnostic["severity"]?.GetValue<int>() ?? (int)DiagnosticSeverity.Error) <= (int)minimum;
 
     public async Task<JsonObject> FileDiagnosticsAsync(
         string uri,
@@ -196,22 +258,5 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
                 yield return candidate;
             }
         }
-    }
-
-    private static JsonNode? Limit(JsonNode? result, int limit)
-    {
-        if (result is not JsonArray array || array.Count <= limit)
-        {
-            return result;
-        }
-
-        return new JsonObject
-        {
-            ["items"] = new JsonArray(
-                array.Take(limit).Select(static item => item?.DeepClone()).ToArray()
-            ),
-            ["total"] = array.Count,
-            ["truncated"] = true,
-        };
     }
 }

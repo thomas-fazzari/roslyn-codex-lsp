@@ -204,7 +204,11 @@ internal sealed partial class LspTool(
             or LspAction.TypeDefinition
             or LspAction.Implementation
             or LspAction.References
-            or LspAction.Hover => await queries.NavigationAsync(request, cancellationToken),
+            or LspAction.Hover
+            or LspAction.Callers
+            or LspAction.Callees
+            or LspAction.Supertypes
+            or LspAction.Subtypes => await queries.NavigationAsync(request, cancellationToken),
             LspAction.Rename or LspAction.RenameFile or LspAction.CodeActions =>
                 await changes.ExecuteAsync(request, cancellationToken),
             LspAction.Request => await RawRequestAsync(request, cancellationToken),

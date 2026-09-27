@@ -128,12 +128,28 @@ public sealed class RoslynMcpTests
         var hover = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Hover, ConsumerFile, "Greet(")
         );
-        hover["result"]!["contents"].Should().NotBeNull();
+        hover["result"]!["text"]!.GetValue<string>().Should().Contain("Greet");
+
+        var callers = await workspace.CallAsync(
+            await workspace.AtAsync(LspAction.Callers, ContractFile, "Greet(")
+        );
+        var caller = callers["result"]!["items"]!.AsArray().Should().ContainSingle().Which!;
+        caller["file"]!.GetValue<string>().Should().Be(ConsumerFile);
+        caller["calls"]!.AsArray().Should().ContainSingle();
+
+        var subtypes = await workspace.CallAsync(
+            await workspace.AtAsync(LspAction.Subtypes, ContractFile, "IGreeter")
+        );
+        subtypes["result"]!["items"]!
+            .AsArray()
+            .Select(item => item!["file"]!.GetValue<string>())
+            .Should()
+            .Equal(ImplementationFile);
 
         var symbols = await workspace.CallAsync(
             new LspRequest { Action = LspAction.Symbols, Query = "IGreeter" }
         );
-        symbols["result"]!
+        symbols["result"]!["items"]!
             .AsArray()
             .Should()
             .Contain(symbol => symbol!["name"]!.GetValue<string>() == "IGreeter");
@@ -141,7 +157,8 @@ public sealed class RoslynMcpTests
         var documentSymbols = await workspace.CallAsync(
             new LspRequest { Action = LspAction.Symbols, File = ContractFile }
         );
-        var symbolNames = DocumentSymbolNames(documentSymbols["result"]!.AsArray()).ToArray();
+        var symbolNames = DocumentSymbolNames(documentSymbols["result"]!["items"]!.AsArray())
+            .ToArray();
         symbolNames.Should().Contain("IGreeter");
         symbolNames.Should().Contain(name => name.StartsWith("Greet(", StringComparison.Ordinal));
 
@@ -193,6 +210,20 @@ public sealed class RoslynMcpTests
         {
             limited[field]!.GetValue<int>().Should().Be(full[field]!.GetValue<int>());
         }
+
+        var withSuggestions = (
+            await workspace.CallAsync(request with { Severity = DiagnosticSeverity.Hint })
+        )["result"]!;
+        full["diagnostics"]!
+            .AsArray()
+            .SelectMany(file => file!["diagnostics"]!.AsArray())
+            .Select(item => item!["severity"]!.GetValue<string>())
+            .Should()
+            .OnlyContain(severity => severity == "error" || severity == "warning");
+        withSuggestions["total"]!
+            .GetValue<int>()
+            .Should()
+            .Be(full["total"]!.GetValue<int>() + full["belowSeverity"]!.GetValue<int>());
 
         limited["complete"]!.GetValue<bool>().Should().BeTrue();
         limited["truncated"]!.GetValue<bool>().Should().BeTrue();

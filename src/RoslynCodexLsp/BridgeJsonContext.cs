@@ -14,6 +14,7 @@ namespace RoslynCodexLsp;
 [JsonSerializable(typeof(NavigationAction))]
 [JsonSerializable(typeof(EditAction))]
 [JsonSerializable(typeof(ServerAction))]
+[JsonSerializable(typeof(DiagnosticSeverity))]
 [JsonSerializable(typeof(EditApplicationPhase))]
 [JsonSerializable(typeof(JsonNode))]
 [JsonSerializable(typeof(JsonObject))]

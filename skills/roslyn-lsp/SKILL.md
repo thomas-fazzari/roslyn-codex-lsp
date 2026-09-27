@@ -8,8 +8,8 @@ description: Use the Roslyn MCP for C# diagnostics, symbol navigation and semant
 Use the `roslyn` server for C# diagnostics, navigation and semantic edits.
 It reads saved files in the current workspace. Its tools take flat arguments:
 
-- `diagnostics`: `{ "file": "src/Calculator.cs" }`
-- `navigate`: `action` (`definition`, `type_definition`, `implementation`, `references`, `hover`), `file`, `line`, `character`
+- `diagnostics`: `{ "file": "src/Calculator.cs" }`. It reports errors and warnings unless `severity` is `information` or `hint`
+- `navigate`: `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), `file`, `line`, `character`
 - `symbols`: `file`, or `query` for a workspace search
 - `edit`: `action` (`rename`, `rename_file`, `code_actions`) with its inputs, `proposalId` and `apply`
 - `lsp`: `action` (`status`, `capabilities`, `reload`, `request`), and `method` with `parameters` for raw requests
@@ -30,7 +30,8 @@ Use `navigate` with `definition`, `implementation` or `references` when symbol i
 Pass `file`, `line` and `character`. Input positions start at 1 and count UTF-16 code units.
 Navigation returns `items` grouped by `file`, with one-based `[line, character]` pairs in `positions`.
 `total` counts occurrences before limiting. Check `truncated` before claiming completeness.
-Diagnostics, hover and symbols also return one-based positions. Only raw `lsp` requests use zero-based LSP positions.
+Use `callers`, `callees`, `supertypes` and `subtypes` for call and type relationships.
+Diagnostics, symbols and related symbols also return one-based positions. Only raw `lsp` requests use zero-based LSP positions.
 Use `lsp` with `capabilities` when an operation's support is uncertain.
 
 ## Edits

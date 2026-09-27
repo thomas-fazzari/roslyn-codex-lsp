@@ -39,5 +39,7 @@ internal sealed record LspRequest
 
     public JsonObject? Parameters { get; init; }
 
+    public DiagnosticSeverity Severity { get; init; } = DiagnosticSeverity.Warning;
+
     public int Limit { get; init; } = DefaultResultLimit;
 }

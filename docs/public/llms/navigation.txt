@@ -11,6 +11,10 @@ Replace action with:
 type_definition - Find the symbol's type definition.
 implementation - Find implementations of an interface or abstract member.
 references - Find references, including the declaration.
+callers - Find the methods that call this method, with their call sites.
+callees - Find the methods this method calls, with the call sites in this file.
+supertypes - Find the base types and interfaces of a type.
+subtypes - Find the types that derive from or implement a type.
 hover - Read type information and documentation.
 
 SYMBOL SEARCH
@@ -35,5 +39,10 @@ total counts occurrences before limiting. limit caps occurrences, not files.
 limit defaults to 50 and accepts 1 through 250. Inspect truncated before claiming
 a complete reference or implementation list. No matches returns items: [].
 
-Hover and symbols preserve Roslyn's LSP shapes, with one-based positions.
+callers, callees, supertypes and subtypes return:
+{"items":[{"name":"Consumer.Run(IGreeter)","kind":"method","file":"src/Consumer.cs","position":[7,26],"calls":[[7,59]]}],"total":1,"truncated":false}
+calls is present only for callers and callees.
+
+Symbols return items with name, kind, file and position. Document symbols omit
+file and nest members in children. Hover returns {"text":"..."} in Markdown.
 Use the lsp tool with action=request for raw LSP locations, full ranges and location link metadata.
