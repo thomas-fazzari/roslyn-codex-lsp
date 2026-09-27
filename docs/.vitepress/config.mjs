@@ -2,7 +2,7 @@ import { defineConfig } from "vitepress";
 
 export default defineConfig({
   title: "Roslyn Codex LSP",
-  description: "C# diagnostics, navigation and refactoring in Codex.",
+  description: "C# diagnostics, navigation and refactoring in Codex and Claude Code.",
   base: "/roslyn-codex-lsp/",
   lang: "en-US",
   themeConfig: {

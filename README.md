@@ -5,7 +5,7 @@
 [![Documentation](https://img.shields.io/badge/docs-VitePress-646CFF?logo=vitepress&logoColor=white)](https://thomas-fazzari.github.io/roslyn-codex-lsp/)
 [![License](https://img.shields.io/github/license/thomas-fazzari/roslyn-codex-lsp)](LICENSE)
 
-C# diagnostics, navigation and refactoring in Codex, backed by the official Roslyn language server through the Model Context Protocol (MCP).
+C# diagnostics, navigation and refactoring in Codex and Claude Code, backed by the official Roslyn language server through the Model Context Protocol (MCP).
 
 Find definitions, implementations and references. Preview and apply renames, fixes and refactorings.
 The bridge reads saved files and works independently of your editor.
@@ -14,7 +14,7 @@ The bridge reads saved files and works independently of your editor.
 
 ## Install
 
-Prerequisite: Codex CLI. The installer can use an existing Roslyn language server or install one for you.
+Prerequisite: Codex CLI or Claude Code. The installer can use an existing Roslyn language server or install one for you.
 
 macOS and Linux, with Bash, curl and tar:
 
@@ -28,7 +28,7 @@ Windows x64, in PowerShell:
 & ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.ps1)))
 ```
 
-Open a new Codex session in your C# project. The `roslyn` MCP server is available globally.
+Open a new session in your C# project. The `roslyn` MCP server is available globally in each installed client.
 
 ## Contributors
 

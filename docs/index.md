@@ -1,7 +1,7 @@
 # Roslyn Codex LSP
 
-C# diagnostics, navigation and refactoring in Codex, backed by the official Roslyn language server.
-The bridge connects Codex through the Model Context Protocol (MCP). No editor extension is required.
+C# diagnostics, navigation and refactoring in Codex and Claude Code, backed by the official Roslyn language server.
+The bridge connects these agents through the Model Context Protocol (MCP). No editor extension is required.
 
 - Read errors, warnings and analyzer suggestions.
 - Find definitions, implementations, references and symbols.

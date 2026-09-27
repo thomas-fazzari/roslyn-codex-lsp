@@ -4,7 +4,7 @@
 
 The executable project (RoslynCodexLsp.csproj) defines the MCP host and its Roslyn LSP integration.
 Use the official MCP SDK and StreamJsonRpc for their protocol responsibilities.
-Keep the bridge standalone and scoped to Codex.
+Keep the bridge standalone and usable from any MCP client. Installers set up Codex and Claude Code.
 
 - `.gitignore` uses an allowlist: ignore files by default and explicitly allow project paths.
 - Reserve standard output for MCP messages, send logs to standard error.
@@ -18,7 +18,7 @@ Keep the bridge standalone and scoped to Codex.
 - Assert error types and structured results instead of exact diagnostic prose.
 - Reuse production constants in tests through `internal` access and `InternalsVisibleTo`.
 - Run `just check` for C# or tooling changes and `just docs::check` for documentation changes.
-- Distinguish simulated protocol tests from real Roslyn and Codex validation.
+- Distinguish simulated protocol tests from real Roslyn and client validation.
 
 ## Writing
 

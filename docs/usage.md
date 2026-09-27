@@ -1,6 +1,6 @@
 # Usage
 
-Ask Codex to use the `roslyn` Model Context Protocol (MCP) server.
+Ask your agent to use the `roslyn` Model Context Protocol (MCP) server.
 
 Example usage:
 

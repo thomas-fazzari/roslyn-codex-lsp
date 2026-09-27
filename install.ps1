@@ -1,7 +1,9 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-Installs the native Roslyn Codex LSP bridge and registers it in Codex.
+Installs the native Roslyn Codex LSP bridge and registers it in Codex and Claude Code.
+.PARAMETER Client
+Clients to set up: codex, claude or both. Defaults to every installed client.
 .PARAMETER Server
 Uses an existing language server executable and skips its installation.
 The bridge does not require .NET. Installing Roslyn requires the .NET 10 SDK.
@@ -11,6 +13,8 @@ param(
     [string] $Version,
     [string] $InstallDir = (Join-Path $env:LOCALAPPDATA 'roslyn-codex-lsp'),
     [string] $Server,
+    [ValidateSet('codex', 'claude')]
+    [string[]] $Client,
     [switch] $Yes,
     [switch] $NoSkill
 )
@@ -19,7 +23,25 @@ $ErrorActionPreference = 'Stop'
 $repository = 'thomas-fazzari/roslyn-codex-lsp'
 $installSkill = -not $NoSkill
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
-$skillDirectory = Join-Path $codexHome 'skills/roslyn-lsp'
+$claudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
+$clientNames = @{ codex = 'Codex'; claude = 'Claude Code' }
+$skillDirectories = @{
+    codex = Join-Path $codexHome 'skills/roslyn-lsp'
+    claude = Join-Path $claudeHome 'skills/roslyn-lsp'
+}
+
+if (-not $Client) {
+    $Client = @('codex', 'claude' | Where-Object { Get-Command $_ -CommandType Application -ErrorAction SilentlyContinue })
+}
+if (-not $Client) {
+    throw 'Install Codex or Claude Code first.'
+}
+$clientCommands = @{}
+foreach ($name in $Client) {
+    $command = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $command) { throw "Missing the $($clientNames[$name]) CLI." }
+    $clientCommands[$name] = $command.Source
+}
 
 if (-not $Yes) {
     Write-Host "👋 Roslyn Codex LSP`n"
@@ -37,7 +59,7 @@ if (-not $Yes) {
         }
     }
     if ($installSkill) {
-        $answer = Read-Host '📚 Install the Codex usage skill? [Y/n]'
+        $answer = Read-Host '📚 Install the usage skill? [Y/n]'
         switch -Regex ($answer) {
             '^(n|no)$' { $installSkill = $false }
             '^(y|yes)?$' { }
@@ -53,8 +75,10 @@ if (-not $Yes) {
         Write-Host "Roslyn: install in $InstallDir\roslyn (.NET 10 SDK required)"
     }
     Write-Host ('Version: ' + $(if ($Version) { $Version } else { 'latest stable' }))
-    Write-Host 'Codex: global MCP server named roslyn, using each session workspace'
-    if ($installSkill) { Write-Host "Skill: $skillDirectory" }
+    foreach ($name in $Client) {
+        Write-Host "$($clientNames[$name]): global MCP server named roslyn, using each session workspace"
+        if ($installSkill) { Write-Host "$($clientNames[$name]) skill: $($skillDirectories[$name])" }
+    }
     Write-Host 'Existing installations and the roslyn registration will be updated.'
     $answer = Read-Host "`n🚀 Continue? [Y/n]"
     switch -Regex ($answer) {
@@ -67,7 +91,6 @@ if (-not $Yes) {
 if ($env:OS -ne 'Windows_NT' -or [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') {
     throw 'This installer requires Windows x64. Use install.sh for macOS and Linux.'
 }
-$codexCommand = (Get-Command codex -CommandType Application).Source
 $installRoslyn = -not $Server
 if ($Server) {
     $Server = (Get-Command $Server -CommandType Application).Source
@@ -143,7 +166,7 @@ try {
     if ($installSkill) {
         $skillFile = Join-Path $temporaryDirectory 'SKILL.md'
         $skillMetadata = Join-Path $temporaryDirectory 'openai.yaml'
-        Write-Host '📚 Downloading the latest Codex usage skill...'
+        Write-Host '📚 Downloading the latest usage skill...'
         Invoke-WebRequest -UseBasicParsing `
             -Uri "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" `
             -OutFile $skillFile
@@ -154,7 +177,7 @@ try {
 
     $InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
     $bridgeDirectory = Join-Path $InstallDir 'bridge'
-    $mcpArguments = @('mcp', 'add', 'roslyn')
+    $environmentArguments = @()
     if ($installRoslyn) {
         $serverDirectory = Join-Path $InstallDir 'roslyn'
         Write-Host '📦 Installing the Roslyn language server...'
@@ -173,7 +196,7 @@ try {
             throw 'Expected one Roslyn executable in the installed tool package.'
         }
         $Server = $serverExecutables[0].FullName
-        $mcpArguments += @('--env', "PATH=$dotnetDirectory;$serverDirectory;$env:PATH", '--env', "DOTNET_ROOT=$dotnetDirectory")
+        $environmentArguments = @('--env', "PATH=$dotnetDirectory;$serverDirectory;$env:PATH", '--env', "DOTNET_ROOT=$dotnetDirectory")
     }
 
     [System.IO.Directory]::CreateDirectory($bridgeDirectory) | Out-Null
@@ -181,19 +204,38 @@ try {
     Copy-Item -LiteralPath $executable -Destination $installedExecutable -Force
     Copy-Item -LiteralPath (Join-Path $extractedDirectory 'LICENSE') -Destination $bridgeDirectory -Force
     if ($installSkill) {
-        $skillAgentsDirectory = Join-Path $skillDirectory 'agents'
-        [System.IO.Directory]::CreateDirectory($skillAgentsDirectory) | Out-Null
-        Copy-Item -LiteralPath $skillFile -Destination (Join-Path $skillDirectory 'SKILL.md') -Force
-        Copy-Item -LiteralPath $skillMetadata -Destination (Join-Path $skillAgentsDirectory 'openai.yaml') -Force
+        foreach ($name in $Client) {
+            $skillDirectory = $skillDirectories[$name]
+            [System.IO.Directory]::CreateDirectory($skillDirectory) | Out-Null
+            Copy-Item -LiteralPath $skillFile -Destination (Join-Path $skillDirectory 'SKILL.md') -Force
+            # Only Codex reads the interface metadata
+            if ($name -eq 'codex') {
+                $skillAgentsDirectory = Join-Path $skillDirectory 'agents'
+                [System.IO.Directory]::CreateDirectory($skillAgentsDirectory) | Out-Null
+                Copy-Item -LiteralPath $skillMetadata -Destination (Join-Path $skillAgentsDirectory 'openai.yaml') -Force
+            }
+        }
     }
 
-    Write-Host '🔗 Registering the global Codex MCP server...'
-    & $codexCommand @mcpArguments -- $installedExecutable --server $Server
-    if ($LASTEXITCODE -ne 0) { throw 'The Codex MCP registration failed.' }
+    foreach ($name in $Client) {
+        Write-Host "🔗 Registering the global $($clientNames[$name]) MCP server..."
+        if ($name -eq 'codex') {
+            & $clientCommands[$name] mcp add roslyn @environmentArguments -- $installedExecutable --server $Server
+        }
+        else {
+            # Claude Code keeps an existing server instead of replacing it
+            & $clientCommands[$name] mcp remove roslyn --scope user 2>$null | Out-Null
+            # The scope option ends the list of environment values before the server name
+            & $clientCommands[$name] mcp add @environmentArguments --scope user roslyn -- $installedExecutable --server $Server
+        }
+        if ($LASTEXITCODE -ne 0) { throw "The $($clientNames[$name]) MCP registration failed." }
+    }
 
     Write-Host "`n✅ Installed $Version in $InstallDir"
-    if ($installSkill) { Write-Host "Skill installed in $skillDirectory" }
-    Write-Host 'Open a new Codex session in a C# project and check /mcp.'
+    if ($installSkill) {
+        foreach ($name in $Client) { Write-Host "$($clientNames[$name]) skill installed in $($skillDirectories[$name])" }
+    }
+    Write-Host 'Open a new session in a C# project and check /mcp.'
 }
 finally {
     Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force

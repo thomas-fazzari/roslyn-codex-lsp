@@ -4,7 +4,7 @@ ROSLYN CODEX LSP: AGENT REFERENCE
 MCP server: roslyn
 MCP tools: diagnostics, navigate, symbols (read-only), edit, lsp
 Purpose: C# compiler diagnostics, symbol navigation and semantic edits.
-Workspace: the Codex session's working directory unless configured otherwise.
+Workspace: the agent session's working directory unless configured otherwise.
 Source: saved files on disk. Unsaved editor buffers are not available.
 
 CALL FORMAT
@@ -39,7 +39,7 @@ SETUP
 -----
 If roslyn is absent from the available MCP tools, follow the installation guide:
 https://thomas-fazzari.github.io/roslyn-codex-lsp/getting-started.html
-The installer fetches the Codex usage skill from master, independently of the
+The installer fetches the usage skill from master, independently of the
 selected binary release. Rerun the installer to update the skill.
 Use --no-skill in the shell installer or -NoSkill in PowerShell to skip it.
 This reference describes the tool API.

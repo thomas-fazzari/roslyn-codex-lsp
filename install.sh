@@ -7,13 +7,30 @@ server_command=""
 install_directory="${XDG_DATA_HOME:-$HOME/.local/share}/roslyn-codex-lsp"
 assume_yes=false
 install_skill=true
-skill_directory="${CODEX_HOME:-$HOME/.codex}/skills/roslyn-lsp"
+clients=()
+codex_skill_directory="${CODEX_HOME:-$HOME/.codex}/skills/roslyn-lsp"
+claude_skill_directory="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/roslyn-lsp"
 
 usage() {
   printf '%s\n' \
-    'Usage: bash install.sh [--yes] [--no-skill] [--version vX.Y.Z] [--install-dir DIRECTORY] [--server EXECUTABLE]' \
+    'Usage: bash install.sh [--yes] [--client codex|claude]... [--no-skill] [--version vX.Y.Z] [--install-dir DIRECTORY] [--server EXECUTABLE]' \
     'The native bridge does not require .NET. Installing Roslyn requires the .NET 10 SDK.' \
+    'Without --client, the installer sets up every installed client among Codex and Claude Code.' \
     'Use --server to reuse an existing language server and skip its installation.'
+}
+
+client_name() {
+  case "$1" in
+    codex) printf 'Codex' ;;
+    claude) printf 'Claude Code' ;;
+  esac
+}
+
+skill_directory() {
+  case "$1" in
+    codex) printf '%s' "$codex_skill_directory" ;;
+    claude) printf '%s' "$claude_skill_directory" ;;
+  esac
 }
 
 while (($#)); do
@@ -21,9 +38,15 @@ while (($#)); do
     --help|-h) usage; exit 0 ;;
     --yes) assume_yes=true; shift ;;
     --no-skill) install_skill=false; shift ;;
-    --version|--install-dir|--server)
+    --client|--version|--install-dir|--server)
       if (($# < 2)) || [[ -z "$2" ]]; then usage >&2; exit 2; fi
       case "$1" in
+        --client)
+          case "$2" in
+            codex|claude) clients+=("$2") ;;
+            *) printf 'Unknown client: %s. Expected codex or claude.\n' "$2" >&2; exit 2 ;;
+          esac
+          ;;
         --version) version="$2" ;;
         --install-dir) install_directory="$2" ;;
         --server) server_command="$2" ;;
@@ -32,6 +55,19 @@ while (($#)); do
       ;;
     *) usage >&2; exit 2 ;;
   esac
+done
+
+if ((${#clients[@]} == 0)); then
+  for client in codex claude; do
+    if command -v "$client" >/dev/null; then clients+=("$client"); fi
+  done
+fi
+if ((${#clients[@]} == 0)); then
+  printf 'Install Codex or Claude Code first.\n' >&2
+  exit 1
+fi
+for client in "${clients[@]}"; do
+  command -v "$client" >/dev/null || { printf 'Missing the %s CLI.\n' "$(client_name "$client")" >&2; exit 1; }
 done
 
 if [[ "$assume_yes" == false ]]; then
@@ -58,7 +94,7 @@ if [[ "$assume_yes" == false ]]; then
     esac
   fi
   if [[ "$install_skill" == true ]]; then
-    printf '📚 Install the Codex usage skill? [Y/n]: ' >&3
+    printf '📚 Install the usage skill? [Y/n]: ' >&3
     IFS= read -r answer <&3
     case "$answer" in
       n|N|no|NO) install_skill=false ;;
@@ -74,8 +110,10 @@ if [[ "$assume_yes" == false ]]; then
     printf 'Roslyn: install in %s/roslyn (.NET 10 SDK required)\n' "$install_directory"
   fi
   printf 'Version: %s\n' "${version:-latest stable}"
-  printf 'Codex: global MCP server named roslyn, using each session workspace\n'
-  if [[ "$install_skill" == true ]]; then printf 'Skill: %s\n' "$skill_directory"; fi
+  for client in "${clients[@]}"; do
+    printf '%s: global MCP server named roslyn, using each session workspace\n' "$(client_name "$client")"
+    if [[ "$install_skill" == true ]]; then printf '%s skill: %s\n' "$(client_name "$client")" "$(skill_directory "$client")"; fi
+  done
   printf 'Existing installations and the roslyn registration will be updated.\n'
   printf '\n🚀 Continue? [Y/n]: ' >&3
   IFS= read -r answer <&3
@@ -87,7 +125,7 @@ if [[ "$assume_yes" == false ]]; then
   exec 3>&-
 fi
 
-for command in codex curl tar; do
+for command in curl tar; do
   command -v "$command" >/dev/null || { printf 'Missing required command: %s\n' "$command" >&2; exit 1; }
 done
 
@@ -173,10 +211,11 @@ if [[ ! -x "$temporary_directory/bridge/RoslynCodexLsp" ]]; then
 fi
 
 if [[ "$install_skill" == true ]]; then
-  printf '📚 Downloading the latest Codex skill...\n'
+  printf '📚 Downloading the latest usage skill...\n'
   curl --fail --silent --show-error --location \
     "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/SKILL.md" \
     --output "$temporary_directory/SKILL.md"
+  # Only Codex reads the interface metadata
   curl --fail --silent --show-error --location \
     "https://raw.githubusercontent.com/$repository/master/skills/roslyn-lsp/agents/openai.yaml" \
     --output "$temporary_directory/openai.yaml"
@@ -186,7 +225,7 @@ mkdir -p "$install_directory"
 install_directory="$(cd "$install_directory" && pwd -P)"
 bridge_directory="$install_directory/bridge"
 
-mcp_arguments=(mcp add roslyn)
+environment_arguments=()
 if [[ "$install_roslyn" == true ]]; then
   server_directory="$install_directory/roslyn"
   server_command="$server_directory/roslyn-language-server"
@@ -197,7 +236,7 @@ if [[ "$install_roslyn" == true ]]; then
     "$dotnet_command" tool update roslyn-language-server --prerelease \
       --tool-path "$server_directory" --source https://api.nuget.org/v3/index.json
   )
-  mcp_arguments+=(--env "PATH=$dotnet_directory:$server_directory:$PATH" --env "DOTNET_ROOT=$dotnet_directory")
+  environment_arguments+=(--env "PATH=$dotnet_directory:$server_directory:$PATH" --env "DOTNET_ROOT=$dotnet_directory")
 fi
 
 mkdir -p "$bridge_directory"
@@ -206,16 +245,34 @@ cp "$temporary_directory/bridge/RoslynCodexLsp" "$bridge_directory/RoslynCodexLs
 mv -f "$bridge_directory/RoslynCodexLsp.new" "$bridge_directory/RoslynCodexLsp"
 cp "$temporary_directory/bridge/LICENSE" "$bridge_directory/LICENSE"
 if [[ "$install_skill" == true ]]; then
-  mkdir -p "$skill_directory/agents"
-  cp "$temporary_directory/SKILL.md" "$skill_directory/SKILL.md"
-  cp "$temporary_directory/openai.yaml" "$skill_directory/agents/openai.yaml"
+  for client in "${clients[@]}"; do
+    skill="$(skill_directory "$client")"
+    mkdir -p "$skill"
+    cp "$temporary_directory/SKILL.md" "$skill/SKILL.md"
+    if [[ "$client" == codex ]]; then
+      mkdir -p "$skill/agents"
+      cp "$temporary_directory/openai.yaml" "$skill/agents/openai.yaml"
+    fi
+  done
 fi
 
-printf '🔗 Registering the global Codex MCP server...\n'
-codex "${mcp_arguments[@]}" \
-  -- "$bridge_directory/RoslynCodexLsp" \
-  --server "$server_command"
+server=("$bridge_directory/RoslynCodexLsp" --server "$server_command")
+for client in "${clients[@]}"; do
+  printf '🔗 Registering the global %s MCP server...\n' "$(client_name "$client")"
+  if [[ "$client" == codex ]]; then
+    codex mcp add roslyn ${environment_arguments[@]+"${environment_arguments[@]}"} -- "${server[@]}"
+  else
+    # Claude Code keeps an existing server instead of replacing it
+    claude mcp remove roslyn --scope user >/dev/null 2>&1 || true
+    # The scope option ends the list of environment values before the server name
+    claude mcp add ${environment_arguments[@]+"${environment_arguments[@]}"} --scope user roslyn -- "${server[@]}"
+  fi
+done
 
 printf '\n✅ Installed %s in %s\n' "$version" "$install_directory"
-if [[ "$install_skill" == true ]]; then printf 'Skill installed in %s\n' "$skill_directory"; fi
-printf 'Open a new Codex session in a C# project and check /mcp.\n'
+if [[ "$install_skill" == true ]]; then
+  for client in "${clients[@]}"; do
+    printf '%s skill installed in %s\n' "$(client_name "$client")" "$(skill_directory "$client")"
+  done
+fi
+printf 'Open a new session in a C# project and check /mcp.\n'

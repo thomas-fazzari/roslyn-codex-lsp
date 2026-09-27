@@ -27,7 +27,7 @@ Stop any bridge process using the build output before rebuilding it.
 Copy `.env.copyme` to `.env` and set `EXTRA_PATH` if executable directories are missing from `PATH`.
 These settings apply to just commands. Existing environment variables take precedence over `.env`.
 Set `DOTNET`, `BUN` or `TEST_ARGS` in the environment to override executables or add test arguments.
-Codex uses its own MCP environment.
+MCP clients launch the bridge with their own environment.
 
 ## Tests
 

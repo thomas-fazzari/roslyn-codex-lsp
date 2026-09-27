@@ -2,7 +2,7 @@
 
 ## Install
 
-Prerequisite: Codex CLI. On macOS and Linux, also use Bash, curl and tar.
+Prerequisite: Codex CLI or Claude Code. On macOS and Linux, also use Bash, curl and tar.
 
 macOS and Linux:
 
@@ -16,9 +16,10 @@ Windows x64, in PowerShell:
 & ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.ps1)))
 ```
 
-The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in Codex.
+The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in each installed client among Codex and Claude Code.
+Use `--client codex` or `--client claude` (`-Client` in PowerShell) to set up only one of them.
 Before making changes, it asks for an installation directory and offers an optional skill for C# diagnostics, navigation and edits.
-The skill includes `SKILL.md` and `agents/openai.yaml`. Both come from `master`, independently of the binary version.
+The skill includes `SKILL.md`, plus `agents/openai.yaml` for Codex. Both come from `master`, independently of the binary version.
 Skill updates do not require a new binary release.
 Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
 Windows uses `%LOCALAPPDATA%\roslyn-codex-lsp`.
@@ -43,7 +44,7 @@ Your C# project can target a different .NET version. Keep its required SDK and w
 
 ## Use it
 
-Restore your C# solution with `dotnet restore`, then open a new Codex session in that project.
+Restore your C# solution with `dotnet restore`, then open a new Codex or Claude Code session in that project.
 In the CLI, use `/mcp` to check that `roslyn` is connected.
 
 ```text
@@ -60,8 +61,13 @@ Codex stores the global registration in `~/.codex/config.toml`, or under `CODEX_
 A project-level `.codex/config.toml` can override it.
 See [Codex MCP configuration](https://developers.openai.com/codex/mcp/) for client settings and tool approvals.
 
+Claude Code stores the user-scope registration in `~/.claude.json`, or under `CLAUDE_CONFIG_DIR` when set.
+Allow the tools without prompts by adding `mcp__roslyn__*` to `permissions.allow` in `~/.claude/settings.json`.
+See [Claude Code MCP](https://docs.claude.com/en/docs/claude-code/mcp) for client settings.
+
 Roslyn loads the solution on the first language request.
-For large projects, set `tool_timeout_sec = 200` under `[mcp_servers.roslyn]`.
+For large projects, set `tool_timeout_sec = 200` under `[mcp_servers.roslyn]` in Codex.
+In Claude Code, set the `MCP_TOOL_TIMEOUT` environment variable in milliseconds, for example `200000`.
 
 | Bridge argument     | Default                            |
 | ------------------- | ---------------------------------- |
@@ -70,8 +76,8 @@ For large projects, set `tool_timeout_sec = 200` under `[mcp_servers.roslyn]`.
 | `--startup-timeout` | 120 seconds                        |
 | `--request-timeout` | 60 seconds                         |
 
-Timeout arguments accept 1 to 600 seconds. Keep Codex's tool timeout above the startup and request timeout sum when increasing these limits.
+Timeout arguments accept 1 to 600 seconds. Keep the client's tool timeout above the startup and request timeout sum when increasing these limits.
 
 ## Remove
 
-Run `codex mcp remove roslyn`, then delete the installation directory and optional skill directory printed by the installer.
+Run `codex mcp remove roslyn` or `claude mcp remove roslyn --scope user`, then delete the installation directory and optional skill directory printed by the installer.
