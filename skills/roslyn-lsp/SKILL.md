@@ -5,14 +5,16 @@ description: Use the Roslyn MCP for C# diagnostics, symbol navigation and semant
 
 # Roslyn LSP
 
-Use the `roslyn` server's `lsp` tool for C# diagnostics, navigation and semantic edits.
-It reads saved files in the current workspace.
+Use the `roslyn` server for C# diagnostics, navigation and semantic edits.
+It reads saved files in the current workspace. Its tools take flat arguments:
 
-Pass arguments inside `request`, for example:
+- `diagnostics`: `{ "file": "src/Calculator.cs" }`
+- `navigate`: `action` (`definition`, `type_definition`, `implementation`, `references`, `hover`), `file`, `line`, `character`
+- `symbols`: `file`, or `query` for a workspace search
+- `edit`: `action` (`rename`, `rename_file`, `code_actions`) with its inputs, `proposalId` and `apply`
+- `lsp`: `action` (`status`, `capabilities`, `reload`, `request`), and `method` with `parameters` for raw requests
 
-```json
-{ "request": { "action": "diagnostics", "file": "src/Calculator.cs" } }
-```
+`diagnostics`, `navigate` and `symbols` are read-only.
 
 ## Scope and diagnostics
 
@@ -24,16 +26,16 @@ Pass arguments inside `request`, for example:
 
 ## Navigation
 
-Use `definition`, `implementation` and `references` when symbol identity matters.
+Use `navigate` with `definition`, `implementation` or `references` when symbol identity matters.
 Pass `file`, `line` and `character`. Input positions start at 1 and count UTF-16 code units.
 Navigation returns `items` grouped by `file`, with one-based `[line, character]` pairs in `positions`.
 `total` counts occurrences before limiting. Check `truncated` before claiming completeness.
-Diagnostics, hover and symbols also return one-based positions. Only raw `request` calls use zero-based LSP positions.
-Use `capabilities` when an operation's support is uncertain.
+Diagnostics, hover and symbols also return one-based positions. Only raw `lsp` requests use zero-based LSP positions.
+Use `lsp` with `capabilities` when an operation's support is uncertain.
 
 ## Edits
 
-Renames return a preview and `proposalId`. Apply the proposal with its action, `proposalId` and `apply: true`.
+`edit` returns a preview and a `proposalId`. Apply the proposal with the same action, its `proposalId` and `apply: true`.
 For code actions, send the listing's `proposalId` and zero-based `actionIndex` to resolve an edit preview, then apply its new `proposalId`.
 
 Stay within the requested change. A preview-only request does not authorize applying it.

@@ -8,33 +8,33 @@ authorized edits and validation without adding a separate approval step.
 RENAME A SYMBOL
 ---------------
 1. Request a preview at a one-based symbol position:
-{"request":{"action":"rename","file":"src/Calculator.cs","line":12,"character":9,"newName":"Compute"}}
+edit {"action":"rename","file":"src/Calculator.cs","line":12,"character":9,"newName":"Compute"}
 
 2. Read the changed files and edits. Apply the returned proposalId:
-{"request":{"action":"rename","proposalId":"ID_FROM_PREVIEW","apply":true}}
+edit {"action":"rename","proposalId":"ID_FROM_PREVIEW","apply":true}
 
 RENAME A FILE
 -------------
 newName is a workspace-relative destination, not a symbol name:
-{"request":{"action":"rename_file","file":"src/Calculator.cs","newName":"src/Math/Calculator.cs"}}
+edit {"action":"rename_file","file":"src/Calculator.cs","newName":"src/Math/Calculator.cs"}
 
-Apply its proposalId with action rename_file and apply true.
+Apply its proposalId with the edit tool, action rename_file and apply true.
 This requires Roslyn to advertise file rename support.
 
 FIXES AND REFACTORINGS
 ---------------------
 1. List actions at the diagnostic or selected code:
-{"request":{"action":"code_actions","file":"src/Calculator.cs","line":12,"character":9}}
+edit {"action":"code_actions","file":"src/Calculator.cs","line":12,"character":9}
 
 For a selection, also pass endLine and endCharacter, both one-based.
 Available actions depend on the installed Roslyn version and loaded project.
 
 2. Choose an action from the returned listing. Resolve its preview using the
 listing's proposalId and the action's zero-based index:
-{"request":{"action":"code_actions","proposalId":"ID_FROM_LISTING","actionIndex":0}}
+edit {"action":"code_actions","proposalId":"ID_FROM_LISTING","actionIndex":0}
 
 3. Inspect the preview. Apply its NEW proposalId:
-{"request":{"action":"code_actions","proposalId":"ID_FROM_PREVIEW","apply":true}}
+edit {"action":"code_actions","proposalId":"ID_FROM_PREVIEW","apply":true}
 
 Do not reuse the listing ID in place of the resolved preview ID.
 Some command-based actions reveal their edits only during execution.

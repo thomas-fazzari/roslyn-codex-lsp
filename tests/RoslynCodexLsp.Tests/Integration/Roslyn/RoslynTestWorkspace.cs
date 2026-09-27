@@ -63,9 +63,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
     public Task WriteFileAsync(string relativePath, string text) =>
         File.WriteAllTextAsync(FilePath(relativePath), text, _cancellationToken);
 
-    public Task<JsonObject> CallAsync(LspRequest request) => CallAsync(SerializeRequest(request));
-
-    public async Task<JsonObject> CallAsync(JsonObject request)
+    public async Task<JsonObject> CallAsync(LspRequest request)
     {
         var response = await CallRawAsync(request).ConfigureAwait(false);
         response.StructuredContent.Should().NotBeNull(JsonSerializer.Serialize(response));
@@ -74,8 +72,13 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         return content;
     }
 
-    public Task<CallToolResult> CallRawAsync(LspRequest request) =>
-        CallRawAsync(SerializeRequest(request));
+    public async Task<CallToolResult> CallRawAsync(LspRequest request)
+    {
+        var (tool, arguments) = ToolCall(request);
+        return await Client
+            .CallToolAsync(tool, arguments, cancellationToken: _cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     public async Task<LspRequest> AtAsync(LspAction action, string file, string symbol)
     {
@@ -125,17 +128,67 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         }
     }
 
-    private static JsonObject SerializeRequest(LspRequest request) =>
-        JsonSerializer.SerializeToNode(request, JsonSerializerOptions.Web)!.AsObject();
-
-    private async Task<CallToolResult> CallRawAsync(JsonObject request) =>
-        await Client
-            .CallToolAsync(
-                LspTool.ToolName,
-                new Dictionary<string, object?>(StringComparer.Ordinal) { ["request"] = request },
-                cancellationToken: _cancellationToken
-            )
-            .ConfigureAwait(false);
+    /// <summary>
+    /// Sends a request the way an agent would: to the tool that owns its action, with flat arguments.
+    /// </summary>
+    private static (string Tool, Dictionary<string, object?> Arguments) ToolCall(LspRequest request)
+    {
+        var (tool, parameters) = request.Action switch
+        {
+            LspAction.Diagnostics => (DiagnosticsTool.Name, ["file", "limit"]),
+            LspAction.Symbols => (SymbolsTool.Name, ["file", "query", "limit"]),
+            LspAction.Definition
+            or LspAction.TypeDefinition
+            or LspAction.Implementation
+            or LspAction.References
+            or LspAction.Hover => (
+                NavigateTool.Name,
+                new[] { "action", "file", "line", "character", "limit" }
+            ),
+            LspAction.Rename or LspAction.RenameFile or LspAction.CodeActions => (
+                EditTool.Name,
+                [
+                    "action",
+                    "file",
+                    "line",
+                    "character",
+                    "endLine",
+                    "endCharacter",
+                    "newName",
+                    "actionIndex",
+                    "proposalId",
+                    "apply",
+                    "limit",
+                ]
+            ),
+            _ => (ServerTool.Name, ["action", "method", "parameters", "apply"]),
+        };
+        var values = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["action"] = JsonSerializer
+                .SerializeToNode(request.Action, BridgeJsonContext.Default.LspAction)!
+                .GetValue<string>(),
+            ["file"] = request.File,
+            ["line"] = request.Line,
+            ["character"] = request.Character,
+            ["endLine"] = request.EndLine,
+            ["endCharacter"] = request.EndCharacter,
+            ["query"] = request.Query,
+            ["newName"] = request.NewName,
+            ["actionIndex"] = request.ActionIndex,
+            ["proposalId"] = request.ProposalId,
+            ["method"] = request.Method,
+            ["parameters"] = request.Parameters,
+            ["apply"] = request.Apply ? true : null,
+            ["limit"] = request.Limit,
+        };
+        return (
+            tool,
+            parameters
+                .Where(name => values[name] is not null)
+                .ToDictionary(name => name, name => values[name], StringComparer.Ordinal)
+        );
+    }
 
     private async Task RestoreAsync()
     {

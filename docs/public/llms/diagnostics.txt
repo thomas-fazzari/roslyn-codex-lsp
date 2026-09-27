@@ -6,13 +6,13 @@ Start with the files affected by the task. To check that the MCP works,
 request diagnostics for one known C# file.
 
 One file:
-{"request":{"action":"diagnostics","file":"src/Calculator.cs"}}
+diagnostics {"file":"src/Calculator.cs"}
 
 Matching files in one project:
-{"request":{"action":"diagnostics","file":"src/Core/**/*.cs","limit":200}}
+diagnostics {"file":"src/Core/**/*.cs","limit":200}
 
 All C# files, only for a requested workspace audit:
-{"request":{"action":"diagnostics"}}
+diagnostics {}
 
 Use a specific path or narrow glob. Omitting file, using "*" or "**/*.cs"
 selects all C# files. Split large audits by project or directory.
@@ -29,7 +29,7 @@ result.truncated: whether diagnostics were omitted from the returned arrays.
 
 Each diagnostic has this shape:
 {"line":12,"character":9,"severity":"error","code":"CS0246","message":"..."}
-line and character give the one-based start. Pass them unchanged to code_actions.
+line and character give the one-based start. Pass them unchanged to the edit tool's code_actions.
 severity is error, warning, information or hint.
 
 LIMITS AND VERIFICATION

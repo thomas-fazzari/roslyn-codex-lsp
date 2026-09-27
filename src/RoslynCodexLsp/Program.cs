@@ -39,14 +39,24 @@ internal static class Program
         builder.Services.AddSingleton<LspChanges>();
         builder.Services.AddSingleton<LspTool>();
 
-        var jsonOptions = new JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
-        jsonOptions.TypeInfoResolverChain.Insert(0, BridgeJsonContext.Default);
-        builder
-            .Services.AddMcpServer()
-            .WithStdioServerTransport()
-            .WithTools<LspTool>(serializerOptions: jsonOptions);
+        builder.Services.AddMcpServer().WithStdioServerTransport().WithRoslynTools();
 
         using var host = builder.Build();
         await host.RunAsync(CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Registers MCP tools with the generated JSON metadata required by Native AOT.
+    /// </summary>
+    internal static IMcpServerBuilder WithRoslynTools(this IMcpServerBuilder builder)
+    {
+        var jsonOptions = new JsonSerializerOptions(McpJsonUtilities.DefaultOptions);
+        jsonOptions.TypeInfoResolverChain.Insert(0, BridgeJsonContext.Default);
+        return builder
+            .WithTools<DiagnosticsTool>(serializerOptions: jsonOptions)
+            .WithTools<NavigateTool>(serializerOptions: jsonOptions)
+            .WithTools<SymbolsTool>(serializerOptions: jsonOptions)
+            .WithTools<EditTool>(serializerOptions: jsonOptions)
+            .WithTools<ServerTool>(serializerOptions: jsonOptions);
     }
 }

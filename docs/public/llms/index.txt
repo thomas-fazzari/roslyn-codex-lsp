@@ -2,15 +2,15 @@ ROSLYN CODEX LSP: AGENT REFERENCE
 ===============================
 
 MCP server: roslyn
-MCP tool: lsp
+MCP tools: diagnostics, navigate, symbols (read-only), edit, lsp
 Purpose: C# compiler diagnostics, symbol navigation and semantic edits.
 Workspace: the Codex session's working directory unless configured otherwise.
 Source: saved files on disk. Unsaved editor buffers are not available.
 
 CALL FORMAT
 -----------
-Pass every operation inside the request object:
-{"request":{"action":"diagnostics","file":"src/Calculator.cs"}}
+Each tool takes flat arguments. Examples in these files name the tool first:
+diagnostics {"file":"src/Calculator.cs"}
 
 Paths are workspace-relative. Inputs and results use one-based lines and
 one-based UTF-16 characters, so returned positions can be reused as inputs.

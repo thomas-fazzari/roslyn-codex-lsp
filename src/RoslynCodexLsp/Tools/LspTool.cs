@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 using System.Collections.Frozen;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Lsp;
 using StreamJsonRpc;
 
 namespace RoslynCodexLsp.Tools;
 
-[McpServerToolType]
 internal sealed partial class LspTool(
     BridgeOptions options,
     RoslynSession session,
@@ -24,7 +21,6 @@ internal sealed partial class LspTool(
     ILogger<LspTool> logger
 ) : IDisposable
 {
-    internal const string ToolName = "lsp";
     internal const string InvalidRequestErrorCode = "invalid_request";
     internal const string StaleEditErrorCode = "stale_edit";
     internal const string TimeoutErrorCode = "timeout";
@@ -67,10 +63,6 @@ internal sealed partial class LspTool(
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    [McpServerTool(Name = ToolName, ReadOnly = false, Destructive = true, OpenWorld = false)]
-    [Description(
-        "Use the persistent Roslyn language server for C# diagnostics, definitions, implementations, references, hover, symbols, renames and code actions. Coordinates are one-based UTF-16. Changes preview by default. Apply a returned proposalId with apply=true. Files changed by Codex are synchronized before queries. Raw LSP results retain zero-based positions."
-    )]
     public async Task<CallToolResult> ExecuteAsync(
         LspRequest request,
         CancellationToken cancellationToken

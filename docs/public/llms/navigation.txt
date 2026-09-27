@@ -5,7 +5,7 @@ Select a position inside the symbol. file is workspace-relative.
 line and character are one-based. character counts UTF-16 code units.
 
 Definition:
-{"request":{"action":"definition","file":"src/Calculator.cs","line":12,"character":9}}
+navigate {"action":"definition","file":"src/Calculator.cs","line":12,"character":9}
 
 Replace action with:
 type_definition - Find the symbol's type definition.
@@ -16,10 +16,10 @@ hover - Read type information and documentation.
 SYMBOL SEARCH
 -------------
 Document symbols:
-{"request":{"action":"symbols","file":"src/Calculator.cs"}}
+symbols {"file":"src/Calculator.cs"}
 
 Workspace symbols:
-{"request":{"action":"symbols","query":"Calculator","limit":50}}
+symbols {"query":"Calculator","limit":50}
 
 For workspace search, omit file. When file is present, query is not used.
 Use symbols to locate a declaration, then navigation for semantic relationships.
@@ -36,4 +36,4 @@ limit defaults to 50 and accepts 1 through 250. Inspect truncated before claimin
 a complete reference or implementation list. No matches returns items: [].
 
 Hover and symbols preserve Roslyn's LSP shapes, with one-based positions.
-Use action=request for raw LSP locations, full ranges and location link metadata.
+Use the lsp tool with action=request for raw LSP locations, full ranges and location link metadata.

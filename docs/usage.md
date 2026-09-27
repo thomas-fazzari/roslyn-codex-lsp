@@ -1,6 +1,6 @@
 # Usage
 
-Ask Codex to use the `roslyn` Model Context Protocol (MCP) server. It exposes one tool: `lsp`.
+Ask Codex to use the `roslyn` Model Context Protocol (MCP) server.
 
 Example usage:
 
@@ -12,30 +12,21 @@ and preview a rename. Do not apply changes.
 The bridge reads saved files and loads the project independently of your editor.
 Available fixes and refactorings depend on the installed Roslyn version and project.
 
-## Operations
+## Tools
 
-| Action                                                                   | Inputs                                 | Result                                               |
-| ------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------------------------- |
-| `diagnostics`                                                            | `file` path or glob                    | Errors, warnings and suggestions                     |
-| `definition`, `type_definition`, `implementation`, `references`, `hover` | `file`, `line`, `character`            | Locations or symbol information                      |
-| `symbols`                                                                | `file` or `query`                      | Document or workspace symbols                        |
-| `rename`                                                                 | `file`, `line`, `character`, `newName` | Symbol rename preview                                |
-| `rename_file`                                                            | `file`, `newName`                      | File rename preview, if supported                    |
-| `code_actions`                                                           | `file`, `line`, `character`            | Fixes and refactorings                               |
-| `status`, `capabilities`, `reload`                                       | None                                   | Session state, supported features or a fresh session |
-| `request`                                                                | `method`, `parameters`                 | Raw Language Server Protocol (LSP) result            |
+| Tool          | Arguments                                                                                                        | Result                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `diagnostics` | `file` path or glob                                                                                              | Errors, warnings and suggestions                                              |
+| `navigate`    | `action` (`definition`, `type_definition`, `implementation`, `references`, `hover`), `file`, `line`, `character` | Locations or symbol information                                               |
+| `symbols`     | `file` or `query`                                                                                                | Document or workspace symbols                                                 |
+| `edit`        | `action` (`rename`, `rename_file`, `code_actions`) and its inputs                                                | Edit previews, then applied changes                                           |
+| `lsp`         | `action` (`status`, `capabilities`, `reload`, `request`), `method`, `parameters`                                 | Session state, a fresh session or a raw Language Server Protocol (LSP) result |
 
-Pass arguments inside `request`:
+`diagnostics`, `navigate` and `symbols` are read-only. `edit` and `lsp` can write files.
+Arguments are passed directly to each tool:
 
 ```json
-{
-  "request": {
-    "action": "definition",
-    "file": "src/Calculator.cs",
-    "line": 12,
-    "character": 9
-  }
-}
+{ "action": "definition", "file": "src/Calculator.cs", "line": 12, "character": 9 }
 ```
 
 Paths are relative to the workspace. Input coordinates start at **1**, with characters counted as UTF-16 code units.
@@ -43,7 +34,7 @@ Navigation results group occurrences by file in `items`, with one-based `[line, 
 This applies to `definition`, `type_definition`, `implementation` and `references`.
 `total` counts occurrences before limiting, and `truncated` reports omitted occurrences.
 Workspace files use relative paths. External and generated locations keep their absolute URI.
-Location links use the target selection start. Use `action=request` for full LSP ranges and metadata.
+Location links use the target selection start. Use the `lsp` tool with `action=request` for full LSP ranges and metadata.
 Hover and symbols keep Roslyn's LSP shapes, with one-based positions.
 Only raw requests keep zero-based LSP positions.
 
@@ -56,16 +47,10 @@ Each diagnostic gives its one-based start `line` and `character`, its `severity`
 
 ## Preview and apply
 
-Renames return an edit preview and a `proposalId`. Apply that preview with the same action:
+The `edit` tool returns an edit preview and a `proposalId`. Apply that preview with the same action:
 
 ```json
-{
-  "request": {
-    "action": "rename",
-    "proposalId": "id-from-preview",
-    "apply": true
-  }
-}
+{ "action": "rename", "proposalId": "id-from-preview", "apply": true }
 ```
 
 For code actions, request the listing, then send its `proposalId` and zero-based `actionIndex` to resolve a preview.

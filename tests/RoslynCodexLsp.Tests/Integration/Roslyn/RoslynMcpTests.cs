@@ -41,16 +41,19 @@ public sealed class RoslynMcpTests
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
         var tools = await workspace.Client.ListToolsAsync(cancellationToken: cancellationToken);
-        tools.Should().ContainSingle().Which.Name.Should().Be(LspTool.ToolName);
+        tools
+            .Select(tool => tool.Name)
+            .Should()
+            .BeEquivalentTo([
+                DiagnosticsTool.Name,
+                NavigateTool.Name,
+                SymbolsTool.Name,
+                EditTool.Name,
+                ServerTool.Name,
+            ]);
 
         var capabilities = await workspace.CallAsync(
-            new JsonObject
-            {
-                ["action"] = JsonSerializer.SerializeToNode(
-                    LspAction.Capabilities,
-                    BridgeJsonContext.Default.LspAction
-                ),
-            }
+            new LspRequest { Action = LspAction.Capabilities }
         );
         capabilities["result"]!["definitionProvider"]!.GetValue<bool>().Should().BeTrue();
         capabilities["result"]!["typeDefinitionProvider"]!.GetValue<bool>().Should().BeTrue();
@@ -170,10 +173,11 @@ public sealed class RoslynMcpTests
         cleanResult["complete"]!.GetValue<bool>().Should().BeTrue();
         cleanResult["truncated"]!.GetValue<bool>().Should().BeFalse();
 
-        var request = new LspRequest(LspRequest.MaximumResultLimit)
+        var request = new LspRequest
         {
             Action = LspAction.Diagnostics,
             File = "Application/*.cs",
+            Limit = LspRequest.MaximumResultLimit,
         };
         var full = (await workspace.CallAsync(request))["result"]!;
         var limited = (await workspace.CallAsync(request with { Limit = 1 }))["result"]!;
