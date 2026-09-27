@@ -14,7 +14,7 @@
 !/CodeMetricsConfig.txt
 !/Directory.Build.props
 !/Directory.Packages.props
-!/RoslynCodexLsp.slnx
+!/Roslyn4Clankers.slnx
 !/global.json
 !/package.json
 !/install.sh

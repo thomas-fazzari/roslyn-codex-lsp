@@ -30,15 +30,15 @@ edits.txt - Rename and code action preview/apply sequences, stale proposals.
 session.txt - Status, capabilities, reload and raw requests.
 
 Full URLs:
-https://thomas-fazzari.github.io/roslyn-codex-lsp/llms/diagnostics.txt
-https://thomas-fazzari.github.io/roslyn-codex-lsp/llms/navigation.txt
-https://thomas-fazzari.github.io/roslyn-codex-lsp/llms/edits.txt
-https://thomas-fazzari.github.io/roslyn-codex-lsp/llms/session.txt
+https://thomas-fazzari.github.io/roslyn-for-clankers/llms/diagnostics.txt
+https://thomas-fazzari.github.io/roslyn-for-clankers/llms/navigation.txt
+https://thomas-fazzari.github.io/roslyn-for-clankers/llms/edits.txt
+https://thomas-fazzari.github.io/roslyn-for-clankers/llms/session.txt
 
 SETUP
 -----
 If roslyn is absent from the available MCP tools, follow the installation guide:
-https://thomas-fazzari.github.io/roslyn-codex-lsp/getting-started.html
+https://thomas-fazzari.github.io/roslyn-for-clankers/getting-started.html
 The installer fetches the usage skill from master, independently of the
 selected binary release. Rerun the installer to update the skill.
 Use --no-skill in the shell installer or -NoSkill in PowerShell to skip it.

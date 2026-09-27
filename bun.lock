@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "roslyn-codex-lsp",
+      "name": "roslyn-for-clankers",
       "devDependencies": {
         "lefthook": "2.1.14",
         "markdownlint": "0.41.1",

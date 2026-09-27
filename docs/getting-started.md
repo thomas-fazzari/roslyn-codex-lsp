@@ -7,13 +7,13 @@ Prerequisite: Codex CLI or Claude Code. On macOS and Linux, also use Bash, curl 
 macOS and Linux:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/thomas-fazzari/roslyn-for-clankers/master/install.sh | bash
 ```
 
 Windows x64, in PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-codex-lsp/master/install.ps1)))
+& ([scriptblock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/thomas-fazzari/roslyn-for-clankers/master/install.ps1)))
 ```
 
 The installer downloads the latest stable release, verifies its SHA-256 checksum and registers `roslyn` globally in each installed client among Codex and Claude Code.
@@ -21,8 +21,8 @@ Use `--client codex` or `--client claude` (`-Client` in PowerShell) to set up on
 Before making changes, it asks for an installation directory and offers an optional skill for C# diagnostics, navigation and edits.
 The skill includes `SKILL.md`, plus `agents/openai.yaml` for Codex. Both come from `master`, independently of the binary version.
 Skill updates do not require a new binary release.
-Files are stored in `$XDG_DATA_HOME/roslyn-codex-lsp`, or `~/.local/share/roslyn-codex-lsp` when unset.
-Windows uses `%LOCALAPPDATA%\roslyn-codex-lsp`.
+Files are stored in `$XDG_DATA_HOME/roslyn-for-clankers`, or `~/.local/share/roslyn-for-clankers` when unset.
+Windows uses `%LOCALAPPDATA%\roslyn-for-clankers`.
 Run the same command to update the bridge and skill.
 
 Releases target macOS x64 and ARM64, Linux x64 and ARM64 with glibc, and Windows x64.

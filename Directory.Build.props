@@ -16,7 +16,7 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)CodeMetricsConfig.txt" />
   </ItemGroup>
 
-  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('RoslynCodexLsp.Tests'))">
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Roslyn4Clankers.Tests'))">
     <OutputType>Exe</OutputType>
     <IsPublishable>false</IsPublishable>
     <IsPackable>false</IsPackable>
@@ -24,7 +24,7 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
-  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('RoslynCodexLsp.Tests'))">
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('Roslyn4Clankers.Tests'))">
     <Using Include="AwesomeAssertions" />
     <Using Include="Xunit" />
     <PackageReference Include="AwesomeAssertions" />

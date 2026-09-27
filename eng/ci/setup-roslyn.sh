@@ -15,4 +15,4 @@ if [[ "$RUNNER_OS" == Windows ]]; then
   fi
   server="$(cygpath -w "$server")"
 fi
-printf 'ROSLYN_CODEX_TEST_SERVER=%s\n' "$server" >> "$GITHUB_ENV"
+printf 'ROSLYN4CLANKERS_TEST_SERVER=%s\n' "$server" >> "$GITHUB_ENV"

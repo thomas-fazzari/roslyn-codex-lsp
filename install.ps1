@@ -1,7 +1,7 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-Installs the native Roslyn Codex LSP bridge and registers it in Codex and Claude Code.
+Installs the native Roslyn4Clankers bridge and registers it in Codex and Claude Code.
 .PARAMETER Client
 Clients to set up: codex, claude or both. Defaults to every installed client.
 .PARAMETER Server
@@ -11,7 +11,7 @@ The bridge does not require .NET. Installing Roslyn requires the .NET 10 SDK.
 [CmdletBinding()]
 param(
     [string] $Version,
-    [string] $InstallDir = (Join-Path $env:LOCALAPPDATA 'roslyn-codex-lsp'),
+    [string] $InstallDir = (Join-Path $env:LOCALAPPDATA 'roslyn-for-clankers'),
     [string] $Server,
     [ValidateSet('codex', 'claude')]
     [string[]] $Client,
@@ -20,7 +20,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repository = 'thomas-fazzari/roslyn-codex-lsp'
+$repository = 'thomas-fazzari/roslyn-for-clankers'
+# Default location used before the project was renamed
+$previousDirectory = Join-Path $env:LOCALAPPDATA 'roslyn-codex-lsp'
 $installSkill = -not $NoSkill
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
 $claudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
@@ -44,7 +46,7 @@ foreach ($name in $Client) {
 }
 
 if (-not $Yes) {
-    Write-Host "👋 Roslyn Codex LSP`n"
+    Write-Host "👋 Roslyn4Clankers`n"
     $answer = Read-Host "📁 Installation directory [$InstallDir]"
     if ($answer) { $InstallDir = $answer }
     if (-not $Server) {
@@ -118,7 +120,7 @@ else {
     $dotnetCommand = Join-Path $dotnetDirectory 'dotnet.exe'
 }
 
-$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ('roslyn-codex-lsp-' + [guid]::NewGuid())
+$temporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ('roslyn-for-clankers-' + [guid]::NewGuid())
 [System.IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
 try {
     if (-not $Version) {
@@ -141,11 +143,11 @@ try {
         throw "Expected a release version such as v1.0.0, received: $Version"
     }
 
-    $asset = 'roslyn-codex-lsp-win-x64.zip'
+    $asset = 'roslyn-for-clankers-win-x64.zip'
     $downloadUrl = "https://github.com/$repository/releases/download/$Version"
     $archive = Join-Path $temporaryDirectory $asset
     $checksums = Join-Path $temporaryDirectory 'SHA256SUMS'
-    Write-Host "📥 Downloading Roslyn Codex LSP $Version (win-x64)..."
+    Write-Host "📥 Downloading Roslyn4Clankers $Version (win-x64)..."
     Invoke-WebRequest -UseBasicParsing -Uri "$downloadUrl/$asset" -OutFile $archive
     Invoke-WebRequest -UseBasicParsing -Uri "$downloadUrl/SHA256SUMS" -OutFile $checksums
 
@@ -158,7 +160,7 @@ try {
     Write-Host '🔒 Checksum verified.'
     $extractedDirectory = Join-Path $temporaryDirectory 'bridge'
     Expand-Archive -LiteralPath $archive -DestinationPath $extractedDirectory
-    $executable = Join-Path $extractedDirectory 'RoslynCodexLsp.exe'
+    $executable = Join-Path $extractedDirectory 'Roslyn4Clankers.exe'
     if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
         throw 'The release archive does not contain the native executable.'
     }
@@ -200,7 +202,7 @@ try {
     }
 
     [System.IO.Directory]::CreateDirectory($bridgeDirectory) | Out-Null
-    $installedExecutable = Join-Path $bridgeDirectory 'RoslynCodexLsp.exe'
+    $installedExecutable = Join-Path $bridgeDirectory 'Roslyn4Clankers.exe'
     Copy-Item -LiteralPath $executable -Destination $installedExecutable -Force
     Copy-Item -LiteralPath (Join-Path $extractedDirectory 'LICENSE') -Destination $bridgeDirectory -Force
     if ($installSkill) {
@@ -229,6 +231,26 @@ try {
             & $clientCommands[$name] mcp add @environmentArguments --scope user roslyn -- $installedExecutable --server $Server
         }
         if ($LASTEXITCODE -ne 0) { throw "The $($clientNames[$name]) MCP registration failed." }
+    }
+
+    # Remove the previous installation once no installed client can still point to it
+    $previousExecutable = Join-Path $previousDirectory 'bridge\RoslynCodexLsp.exe'
+    if ((Test-Path -LiteralPath $previousExecutable) -and -not $Server.StartsWith("$previousDirectory\", [StringComparison]::OrdinalIgnoreCase)) {
+        $remainingClients = @('codex', 'claude' | Where-Object {
+            $_ -notin $Client -and (Get-Command $_ -CommandType Application -ErrorAction SilentlyContinue)
+        } | ForEach-Object { $clientNames[$_] })
+        if ($remainingClients) {
+            Write-Host "Kept the previous installation in $previousDirectory, still used by $($remainingClients -join ', '). Rerun without -Client to migrate it."
+        }
+        else {
+            try {
+                Remove-Item -LiteralPath $previousDirectory -Recurse -Force
+                Write-Host "🧹 Removed the previous installation in $previousDirectory"
+            }
+            catch {
+                Write-Warning "Could not remove $previousDirectory. Close running sessions and delete it: $($_.Exception.Message)"
+            }
+        }
     }
 
     Write-Host "`n✅ Installed $Version in $InstallDir"

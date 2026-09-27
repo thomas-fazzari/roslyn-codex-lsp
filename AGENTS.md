@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The executable project (RoslynCodexLsp.csproj) defines the MCP host and its Roslyn LSP integration.
+The executable project (Roslyn4Clankers.csproj) defines the MCP host and its Roslyn LSP integration.
 Use the official MCP SDK and StreamJsonRpc for their protocol responsibilities.
 Keep the bridge standalone and usable from any MCP client. Installers set up Codex and Claude Code.
 
@@ -12,7 +12,7 @@ Keep the bridge standalone and usable from any MCP client. Installers set up Cod
 
 ## Testing
 
-- Place tests under `tests/RoslynCodexLsp.Tests/Unit` or `Integration`, grouped by subject.
+- Place tests under `tests/Roslyn4Clankers.Tests/Unit` or `Integration`, grouped by subject.
 - Keep fixtures under `Fixtures` and reusable test doubles under `Fakes` in that test project.
 - Add behavior tests for concrete changes, not dummy tests for project setup.
 - Assert error types and structured results instead of exact diagnostic prose.

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>roslyn-for-clankers</ToolCommandName>
+    <Description>Roslyn language server tools for Codex through MCP.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Roslyn4Clankers.Tests" />
+    <PackageReference Include="DiffPlex" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="StreamJsonRpc" />
+  </ItemGroup>
+</Project>

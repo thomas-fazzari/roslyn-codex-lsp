@@ -45,19 +45,19 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-            executable: RoslynCodexLsp
+            executable: Roslyn4Clankers
           - os: ubuntu-24.04-arm
             rid: linux-arm64
-            executable: RoslynCodexLsp
+            executable: Roslyn4Clankers
           - os: macos-26-intel
             rid: osx-x64
-            executable: RoslynCodexLsp
+            executable: Roslyn4Clankers
           - os: macos-latest
             rid: osx-arm64
-            executable: RoslynCodexLsp
+            executable: Roslyn4Clankers
           - os: windows-latest
             rid: win-x64
-            executable: RoslynCodexLsp.exe
+            executable: Roslyn4Clankers.exe
     defaults:
       run:
         shell: bash
@@ -85,7 +85,7 @@ jobs:
         run: just ci::roslyn
       - name: Test native executable against Roslyn
         env:
-          ROSLYN_CODEX_TEST_EXECUTABLE: ${{ github.workspace }}/artifacts/native/${{ matrix.executable }}
+          ROSLYN4CLANKERS_TEST_EXECUTABLE: ${{ github.workspace }}/artifacts/native/${{ matrix.executable }}
         run: just test-integration
       - name: Package native executable
         run: just ci::package

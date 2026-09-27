@@ -1,6 +1,6 @@
 import "common.just"
 
-SOLUTION := "RoslynCodexLsp.slnx"
+SOLUTION := "Roslyn4Clankers.slnx"
 CONFIGURATION := env("CONFIGURATION", "Debug")
 TEST_ARGS := env("TEST_ARGS", "")
 RUNTIME_ID := env("RUNTIME_ID", "")
@@ -26,12 +26,12 @@ test: build
 
 # Build and run explicit tests against real Roslyn.
 test-integration: build
-    "{{ DOTNET }}" test --solution {{ SOLUTION }} --configuration "{{ CONFIGURATION }}" --no-build --no-restore -- {{ TEST_ARGS }} --explicit only --filter-class RoslynCodexLsp.Tests.Integration.Roslyn.RoslynMcpTests
+    "{{ DOTNET }}" test --solution {{ SOLUTION }} --configuration "{{ CONFIGURATION }}" --no-build --no-restore -- {{ TEST_ARGS }} --explicit only --filter-class Roslyn4Clankers.Tests.Integration.Roslyn.RoslynMcpTests
 
 # Publish the native bridge in Release mode for RUNTIME_ID.
 publish:
     @test -n "{{ RUNTIME_ID }}" || { echo 'Set RUNTIME_ID, for example osx-arm64.' >&2; exit 1; }
-    "{{ DOTNET }}" publish src/RoslynCodexLsp/RoslynCodexLsp.csproj --configuration Release --runtime "{{ RUNTIME_ID }}" -p:Version="{{ APP_VERSION }}" --output "{{ NATIVE_OUTPUT }}"
+    "{{ DOTNET }}" publish src/Roslyn4Clankers/Roslyn4Clankers.csproj --configuration Release --runtime "{{ RUNTIME_ID }}" -p:Version="{{ APP_VERSION }}" --output "{{ NATIVE_OUTPUT }}"
 
 # Format C# files.
 format:

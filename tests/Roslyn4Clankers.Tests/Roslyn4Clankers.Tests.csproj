@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Roslyn4Clankers/Roslyn4Clankers.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Fixtures/**/*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

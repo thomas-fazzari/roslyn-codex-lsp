@@ -1,5 +1,5 @@
 {
-  "name": "roslyn-codex-lsp",
+  "name": "roslyn-for-clankers",
   "private": true,
   "type": "module",
   "scripts": {

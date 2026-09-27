@@ -1,6 +1,6 @@
 {
   "csharp.debug.justMyCode": false,
-  "dotnet.defaultSolution": "RoslynCodexLsp.slnx",
+  "dotnet.defaultSolution": "Roslyn4Clankers.slnx",
   "oxc.fmt.configPath": ".oxfmtrc.json",
   "oxc.useExecPath": true,
   "oxc.path.oxfmt": "node_modules/oxfmt/bin/oxfmt",

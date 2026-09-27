@@ -1,9 +1,9 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "Roslyn Codex LSP",
+  title: "Roslyn4Clankers",
   description: "C# diagnostics, navigation and refactoring in Codex and Claude Code.",
-  base: "/roslyn-codex-lsp/",
+  base: "/roslyn-for-clankers/",
   lang: "en-US",
   themeConfig: {
     nav: [
@@ -18,6 +18,8 @@ export default defineConfig({
     ],
     search: { provider: "local" },
     outline: [2, 3],
-    socialLinks: [{ icon: "github", link: "https://github.com/thomas-fazzari/roslyn-codex-lsp" }],
+    socialLinks: [
+      { icon: "github", link: "https://github.com/thomas-fazzari/roslyn-for-clankers" },
+    ],
   },
 });

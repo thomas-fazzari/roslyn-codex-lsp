@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repository="thomas-fazzari/roslyn-codex-lsp"
+repository="thomas-fazzari/roslyn-for-clankers"
 version=""
 server_command=""
-install_directory="${XDG_DATA_HOME:-$HOME/.local/share}/roslyn-codex-lsp"
+install_directory="${XDG_DATA_HOME:-$HOME/.local/share}/roslyn-for-clankers"
+# Default location used before the project was renamed
+previous_directory="${XDG_DATA_HOME:-$HOME/.local/share}/roslyn-codex-lsp"
 assume_yes=false
 install_skill=true
 clients=()
@@ -76,7 +78,7 @@ if [[ "$assume_yes" == false ]]; then
     printf 'No terminal available. Run with --yes for unattended installation.\n' >&2
     exit 1
   fi
-  printf '👋 Roslyn Codex LSP\n\n'
+  printf '👋 Roslyn4Clankers\n\n'
   printf '📁 Installation directory [%s]: ' "$install_directory" >&3
   IFS= read -r answer <&3
   install_directory="${answer:-$install_directory}"
@@ -180,9 +182,9 @@ if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
   exit 2
 fi
 
-asset="roslyn-codex-lsp-$runtime_identifier.tar.gz"
+asset="roslyn-for-clankers-$runtime_identifier.tar.gz"
 download_url="https://github.com/$repository/releases/download/$version"
-printf '📥 Downloading Roslyn Codex LSP %s (%s)...\n' "$version" "$runtime_identifier"
+printf '📥 Downloading Roslyn4Clankers %s (%s)...\n' "$version" "$runtime_identifier"
 curl --fail --silent --show-error --location "$download_url/$asset" \
   --output "$temporary_directory/$asset"
 curl --fail --silent --show-error --location "$download_url/SHA256SUMS" \
@@ -205,7 +207,7 @@ fi
 printf '🔒 Checksum verified.\n'
 mkdir "$temporary_directory/bridge"
 tar -xzf "$temporary_directory/$asset" -C "$temporary_directory/bridge"
-if [[ ! -x "$temporary_directory/bridge/RoslynCodexLsp" ]]; then
+if [[ ! -x "$temporary_directory/bridge/Roslyn4Clankers" ]]; then
   printf 'The release archive does not contain the native executable.\n' >&2
   exit 1
 fi
@@ -241,8 +243,8 @@ fi
 
 mkdir -p "$bridge_directory"
 # Replace the executable by rename so running sessions can keep their loaded binary
-cp "$temporary_directory/bridge/RoslynCodexLsp" "$bridge_directory/RoslynCodexLsp.new"
-mv -f "$bridge_directory/RoslynCodexLsp.new" "$bridge_directory/RoslynCodexLsp"
+cp "$temporary_directory/bridge/Roslyn4Clankers" "$bridge_directory/Roslyn4Clankers.new"
+mv -f "$bridge_directory/Roslyn4Clankers.new" "$bridge_directory/Roslyn4Clankers"
 cp "$temporary_directory/bridge/LICENSE" "$bridge_directory/LICENSE"
 if [[ "$install_skill" == true ]]; then
   for client in "${clients[@]}"; do
@@ -256,7 +258,7 @@ if [[ "$install_skill" == true ]]; then
   done
 fi
 
-server=("$bridge_directory/RoslynCodexLsp" --server "$server_command")
+server=("$bridge_directory/Roslyn4Clankers" --server "$server_command")
 for client in "${clients[@]}"; do
   printf '🔗 Registering the global %s MCP server...\n' "$(client_name "$client")"
   if [[ "$client" == codex ]]; then
@@ -268,6 +270,23 @@ for client in "${clients[@]}"; do
     claude mcp add ${environment_arguments[@]+"${environment_arguments[@]}"} --scope user roslyn -- "${server[@]}"
   fi
 done
+
+# Remove the previous installation once no installed client can still point to it
+if [[ -x "$previous_directory/bridge/RoslynCodexLsp" && "$server_command" != "$previous_directory"/* ]]; then
+  remaining_clients=()
+  for client in codex claude; do
+    if command -v "$client" >/dev/null && [[ " ${clients[*]} " != *" $client "* ]]; then
+      remaining_clients+=("$(client_name "$client")")
+    fi
+  done
+  if ((${#remaining_clients[@]} == 0)); then
+    rm -rf "$previous_directory"
+    printf '🧹 Removed the previous installation in %s\n' "$previous_directory"
+  else
+    printf 'Kept the previous installation in %s, still used by %s. Rerun without --client to migrate it.\n' \
+      "$previous_directory" "${remaining_clients[*]}"
+  fi
+fi
 
 printf '\n✅ Installed %s in %s\n' "$version" "$install_directory"
 if [[ "$install_skill" == true ]]; then
