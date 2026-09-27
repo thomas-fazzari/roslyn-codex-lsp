@@ -341,12 +341,7 @@ internal sealed partial class RoslynSession(
                         cancellationToken: timeout.Token
                     )
                     .ConfigureAwait(false);
-                await rpc.NotifyAsync(LspMethods.Exit)
-                    .WaitAsync(timeout.Token)
-                    .ConfigureAwait(false);
             }
-
-            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
         }
         catch (Exception exception)
             when (exception
@@ -358,12 +353,16 @@ internal sealed partial class RoslynSession(
             )
         {
             LogShutdownFailure(logger, exception);
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-            }
         }
+
+        // After the exit notification, Roslyn leaves its MSBuild build hosts running as orphans.
+        // Killing the tree instead ends them while they are still Roslyn's descendants.
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+        }
+
+        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     private async Task ReadStderrAsync(StreamReader reader, CancellationToken cancellationToken)
