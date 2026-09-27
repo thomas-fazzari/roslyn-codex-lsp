@@ -25,6 +25,10 @@ internal sealed partial class RoslynSession
     );
     private readonly ConcurrentDictionary<string, byte> _pendingFiles = new(StringComparer.Ordinal);
     private Dictionary<string, FileStamp> _workspaceFiles = new(StringComparer.Ordinal);
+
+    // Fingerprints of the file contents Roslyn received at the last snapshot synchronization
+    private readonly Dictionary<string, string> _snapshotFingerprints = new(StringComparer.Ordinal);
+
     private FileSystemWatcher? _watcher;
     private int _scanRequested;
 
@@ -82,15 +86,25 @@ internal sealed partial class RoslynSession
         await SynchronizeWatchedFilesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task SynchronizeFilesAsync(
-        IEnumerable<string> files,
+    /// <summary>
+    /// Resends snapshot files whose content changed since the last snapshot sync.
+    /// Compares content fingerprints, not metadata, so an edit that keeps the size and timestamp is still sent.
+    /// </summary>
+    public async Task SynchronizeSnapshotAsync(
+        IReadOnlyDictionary<string, string> fingerprints,
         CancellationToken cancellationToken
     )
     {
-        foreach (var file in files)
+        foreach (var (file, fingerprint) in fingerprints)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            QueueFile(paths.Resolve(file));
+            if (
+                !_snapshotFingerprints.TryGetValue(file, out var synchronized)
+                || !string.Equals(synchronized, fingerprint, StringComparison.Ordinal)
+            )
+            {
+                QueueFile(paths.Resolve(file));
+            }
         }
 
         foreach (var path in _workspaceFiles.Keys)
@@ -103,6 +117,10 @@ internal sealed partial class RoslynSession
         }
 
         await SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var (file, fingerprint) in fingerprints)
+        {
+            _snapshotFingerprints[file] = fingerprint;
+        }
     }
 
     internal void RegisterCapabilities(JsonObject parameters)
@@ -227,11 +245,11 @@ internal sealed partial class RoslynSession
     }
 
     private async Task SynchronizeClosedDocumentAsync(
-        string uri,
+        string file,
         CancellationToken cancellationToken
     )
     {
-        var path = paths.Resolve(uri);
+        var path = paths.Resolve(file);
         if (_documents.ContainsKey(path) || !IsCSharpFile(path))
         {
             return;
@@ -344,29 +362,26 @@ internal sealed partial class RoslynSession
         CancellationToken cancellationToken
     )
     {
-        var changes = new JsonArray();
+        var changes = new List<FileChange>();
         foreach (var (path, stamp) in current)
         {
             if (!_workspaceFiles.TryGetValue(path, out var previous))
             {
-                changes.Add((JsonNode)FileChange(path, FileCreated));
+                changes.Add(new FileChange(path, FileCreated));
             }
             else if (forceAllChanges || changedPaths.Contains(path) || stamp != previous)
             {
-                changes.Add((JsonNode)FileChange(path, FileChanged));
+                changes.Add(new FileChange(path, FileChanged));
             }
         }
 
         foreach (var path in _workspaceFiles.Keys.Where(path => !current.ContainsKey(path)))
         {
-            changes.Add((JsonNode)FileChange(path, FileDeleted));
+            changes.Add(new FileChange(path, FileDeleted));
         }
 
         await SendFileChangesAsync(changes, cancellationToken).ConfigureAwait(false);
     }
-
-    private JsonObject FileChange(string path, int type) =>
-        new() { ["uri"] = paths.ToUri(path), ["type"] = type };
 
     private readonly record struct FileStamp(long Length, DateTime ModifiedUtc);
 }

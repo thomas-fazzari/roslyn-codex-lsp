@@ -109,7 +109,7 @@ internal sealed partial class RoslynSession
     )
     {
         var updates = new Dictionary<string, FileStamp?>(StringComparer.Ordinal);
-        var changes = new JsonArray();
+        var changes = new List<FileChange>();
         foreach (var path in changedPaths)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -122,13 +122,13 @@ internal sealed partial class RoslynSession
             {
                 if (exists)
                 {
-                    changes.Add((JsonNode)FileChange(path, FileDeleted));
+                    changes.Add(new FileChange(path, FileDeleted));
                 }
             }
             else
             {
                 // A change signal remains valid when size and timestamp are preserved
-                changes.Add((JsonNode)FileChange(path, exists ? FileChanged : FileCreated));
+                changes.Add(new FileChange(path, exists ? FileChanged : FileCreated));
             }
 
             updates.Add(path, current);
@@ -149,19 +149,26 @@ internal sealed partial class RoslynSession
         }
     }
 
-    private async Task SendFileChangesAsync(JsonArray changes, CancellationToken cancellationToken)
+    private async Task SendFileChangesAsync(
+        List<FileChange> changes,
+        CancellationToken cancellationToken
+    )
     {
         foreach (var batch in changes.Chunk(FileChangeBatchSize))
         {
+            foreach (var change in batch)
+            {
+                // Roslyn rereads these files, so their recorded fingerprints are no longer reliable
+                _snapshotFingerprints.Remove(change.Path);
+            }
+
             if (!_watchRegistrations.IsEmpty)
             {
                 await NotifyAsync(
                         LspMethods.WorkspaceDidChangeWatchedFiles,
                         new JsonObject
                         {
-                            ["changes"] = new JsonArray([
-                                .. batch.Select(static change => change?.DeepClone()),
-                            ]),
+                            ["changes"] = new JsonArray([.. batch.Select(ToFileEvent)]),
                         },
                         cancellationToken
                     )
@@ -170,15 +177,17 @@ internal sealed partial class RoslynSession
 
             foreach (var change in batch)
             {
-                if (change!["type"]!.GetValue<int>() is not FileDeleted)
+                if (change.Type is not FileDeleted)
                 {
-                    await SynchronizeClosedDocumentAsync(
-                            change["uri"]!.GetValue<string>(),
-                            cancellationToken
-                        )
+                    await SynchronizeClosedDocumentAsync(change.Path, cancellationToken)
                         .ConfigureAwait(false);
                 }
             }
         }
     }
+
+    private JsonNode ToFileEvent(FileChange change) =>
+        new JsonObject { ["uri"] = paths.ToUri(change.Path), ["type"] = change.Type };
+
+    private readonly record struct FileChange(string Path, int Type);
 }

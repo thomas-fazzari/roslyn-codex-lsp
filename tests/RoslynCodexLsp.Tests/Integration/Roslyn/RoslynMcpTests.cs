@@ -202,6 +202,11 @@ public sealed class RoslynMcpTests
 
         var references = await workspace.CallAsync(request);
         Locations(references).Should().Contain(ConsumerFile);
+        var rename = request with { Action = LspAction.Rename, NewName = "Welcome" };
+
+        // first preview records fingerprints, second must detect an edit that keeps the metadata
+        var initialPreview = await workspace.CallAsync(rename);
+        PreviewFiles(initialPreview).Should().Contain(ConsumerFile);
 
         var original = await workspace.ReadFileAsync(ConsumerFile);
         var changed = original.Replace(
@@ -219,20 +224,8 @@ public sealed class RoslynMcpTests
         file.Length.Should().Be(length);
         file.LastWriteTimeUtc.Should().Be(lastWriteTime);
 
-        var preview = await workspace.CallAsync(
-            request with
-            {
-                Action = LspAction.Rename,
-                NewName = "Welcome",
-            }
-        );
-        preview["result"]!["files"]!
-            .AsArray()
-            .Select(item =>
-                item!["path"]!.GetValue<string>().Replace(Path.DirectorySeparatorChar, '/')
-            )
-            .Should()
-            .BeEquivalentTo([ContractFile, ImplementationFile]);
+        var preview = await workspace.CallAsync(rename);
+        PreviewFiles(preview).Should().BeEquivalentTo([ContractFile, ImplementationFile]);
 
         var refreshed = await workspace.CallAsync(request);
         Locations(refreshed).Should().NotContain(ConsumerFile);
@@ -447,6 +440,15 @@ public sealed class RoslynMcpTests
             }
         }
     }
+
+    private static string[] PreviewFiles(JsonObject response) =>
+        [
+            .. response["result"]!["files"]!
+                .AsArray()
+                .Select(item =>
+                    item!["path"]!.GetValue<string>().Replace(Path.DirectorySeparatorChar, '/')
+                ),
+        ];
 
     private static string[] Locations(JsonObject response) =>
         [

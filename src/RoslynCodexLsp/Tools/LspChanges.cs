@@ -469,7 +469,7 @@ internal sealed class LspChanges(
     private async Task<WorkspaceSnapshot> CaptureAsync(CancellationToken cancellationToken)
     {
         var snapshot = await edits.CaptureAsync(cancellationToken);
-        await session.SynchronizeFilesAsync(snapshot.Fingerprints.Keys, cancellationToken);
+        await session.SynchronizeSnapshotAsync(snapshot.Fingerprints, cancellationToken);
         return snapshot with
         {
             DocumentVersions = session.DocumentVersions.ToDictionary(StringComparer.Ordinal),

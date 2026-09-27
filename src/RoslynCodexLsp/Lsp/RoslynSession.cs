@@ -289,6 +289,7 @@ internal sealed partial class RoslynSession(
         _openedOrder.Clear();
         _versions.Clear();
         _workspaceFiles.Clear();
+        _snapshotFingerprints.Clear();
         _watchRegistrations.Clear();
         _watcher?.Dispose();
         _watcher = null;
