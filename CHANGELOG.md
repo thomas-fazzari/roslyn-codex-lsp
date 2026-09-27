@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- Accept a `symbol` name instead of a position in `navigate` and `edit`, such as `Calculator.Add` or `Calculator.Add(int, int)`.
+- Report `symbol_not_found`, or `ambiguous_symbol` with candidate names that can be sent back unchanged.
+
 ## 0.2.1
 
 - Report semantic diagnostics for a file created just before the scan, instead of an empty complete report.
