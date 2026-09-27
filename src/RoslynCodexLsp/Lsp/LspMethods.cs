@@ -19,6 +19,7 @@ internal static class LspMethods
     public const string TextDocumentCompletion = "textDocument/completion";
     public const string TextDocumentDefinition = "textDocument/definition";
     public const string TextDocumentDiagnostic = "textDocument/diagnostic";
+    public const string TextDocumentGetProjectContexts = "textDocument/_vs_getProjectContexts";
     public const string TextDocumentDidChange = "textDocument/didChange";
     public const string TextDocumentDidClose = "textDocument/didClose";
     public const string TextDocumentDidOpen = "textDocument/didOpen";

@@ -232,6 +232,35 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task ImmediatelyReportsSemanticDiagnosticsForANewFileAsync()
+    {
+        const string newFile = "Application/NewFile.cs";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+
+        // Roslyn first treats a new file as a miscellaneous file, without semantic diagnostics
+        await workspace.WriteFileAsync(
+            newFile,
+            "namespace Sample.Application;\n\npublic static class NewFile\n{\n    public static int Wrong() => \"text\";\n}\n"
+        );
+        var result = (
+            await workspace.CallAsync(
+                new LspRequest { Action = LspAction.Diagnostics, File = newFile }
+            )
+        )["result"]!;
+
+        result["complete"]!.GetValue<bool>().Should().BeTrue(result.ToJsonString());
+        result["diagnostics"]!
+            .AsArray()
+            .SelectMany(file => file!["diagnostics"]!.AsArray())
+            .Should()
+            .Contain(item => Code(item!.AsObject()) == "CS0029");
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task RefreshesUnopenedFilesWithUnchangedMetadataBeforeRenameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

@@ -27,7 +27,10 @@ result.filesChecked: number of files scanned.
 result.filesWithDiagnostics: number of files with diagnostics before limiting.
 result.diagnostics: entries containing file and a nonempty diagnostics array.
 Clean files and files with no diagnostics left within the limit are omitted.
-result.complete: whether the report is complete.
+result.complete: whether every scanned file was analyzed within its project.
+result.miscellaneousFiles: present when Roslyn has not attached files to a project.
+These files get no semantic diagnostics, so the report is not complete.
+A file outside every project stays listed. Check the project file includes it.
 result.total: diagnostic count at the selected severity, before the output limit.
 result.belowSeverity: diagnostics left out by the severity filter.
 result.truncated: whether diagnostics were omitted from the returned arrays.

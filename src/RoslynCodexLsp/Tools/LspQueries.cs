@@ -1,15 +1,19 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.FileSystemGlobbing;
 using RoslynCodexLsp.Lsp;
+using StreamJsonRpc;
 
 namespace RoslynCodexLsp.Tools;
 
 internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
 {
     private const int MaximumDiagnosticFiles = 1000;
+    private static readonly TimeSpan _projectAttachTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _projectAttachPollInterval = TimeSpan.FromMilliseconds(200);
 
     public async Task<JsonNode?> NavigationAsync(
         LspRequest request,
@@ -128,11 +132,14 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             );
         }
 
+        await session.SynchronizeNewFilesAsync(files, cancellationToken);
+
         var results = new JsonArray();
         var remaining = request.Limit;
         var total = 0;
         var belowSeverity = 0;
         var filesWithDiagnostics = 0;
+        var miscellaneousFiles = new JsonArray();
         foreach (var batch in files.Chunk(RoslynSession.MaximumOpenDocuments))
         {
             // Each opened document creates a new solution version and discards diagnostics
@@ -141,6 +148,13 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             foreach (var file in batch)
             {
                 uris.Add(await session.OpenDocumentAsync(file, cancellationToken));
+            }
+
+            foreach (var uri in await WaitForProjectsAsync(uris, cancellationToken))
+            {
+                miscellaneousFiles.Add(
+                    (JsonNode)Path.GetRelativePath(paths.Root, new Uri(uri).LocalPath)
+                );
             }
 
             foreach (var (file, uri) in batch.Zip(uris))
@@ -182,16 +196,75 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
             }
         }
 
-        return new JsonObject
+        var result = new JsonObject
         {
             ["filesChecked"] = files.Length,
             ["filesWithDiagnostics"] = filesWithDiagnostics,
             ["diagnostics"] = results,
-            ["complete"] = true,
+            ["complete"] = miscellaneousFiles.Count == 0,
             ["total"] = total,
             ["belowSeverity"] = belowSeverity,
             ["truncated"] = total > request.Limit,
         };
+
+        if (miscellaneousFiles.Count > 0)
+        {
+            result["miscellaneousFiles"] = miscellaneousFiles;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Waits until Roslyn attaches the documents to a project and returns those still outside one.
+    /// Roslyn treats a new file as a miscellaneous file, without semantic diagnostics,
+    /// until its project picks the file up.
+    /// </summary>
+    private async Task<HashSet<string>> WaitForProjectsAsync(
+        IReadOnlyList<string> uris,
+        CancellationToken cancellationToken
+    )
+    {
+        var pending = new HashSet<string>(uris, StringComparer.Ordinal);
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            foreach (var uri in pending.ToArray())
+            {
+                if (!await IsMiscellaneousAsync(uri, cancellationToken))
+                {
+                    pending.Remove(uri);
+                }
+            }
+
+            if (pending.Count == 0 || Stopwatch.GetElapsedTime(started) >= _projectAttachTimeout)
+            {
+                return pending;
+            }
+
+            await Task.Delay(_projectAttachPollInterval, cancellationToken);
+        }
+    }
+
+    private async Task<bool> IsMiscellaneousAsync(string uri, CancellationToken cancellationToken)
+    {
+        JsonNode? result;
+        try
+        {
+            result = await session.RequestAsync(
+                LspMethods.TextDocumentGetProjectContexts,
+                new JsonObject { ["_vs_textDocument"] = new JsonObject { ["uri"] = uri } },
+                cancellationToken
+            );
+        }
+        catch (RemoteInvocationException)
+        {
+            // Servers without this extension cannot report the state, so the file is not held back
+            return false;
+        }
+
+        return result?["_vs_projectContexts"] is JsonArray { Count: > 0 } contexts
+            && contexts.All(context => context?["_vs_is_miscellaneous"]?.GetValue<bool>() is true);
     }
 
     // LSP leaves a missing severity to the client. Reporting it as an error keeps it visible

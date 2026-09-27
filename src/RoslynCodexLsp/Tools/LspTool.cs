@@ -48,6 +48,7 @@ internal sealed partial class LspTool(
         LspMethods.TextDocumentPrepareRename,
         LspMethods.TextDocumentRename,
         LspMethods.TextDocumentDiagnostic,
+        LspMethods.TextDocumentGetProjectContexts,
         LspMethods.WorkspaceDiagnostic,
         LspMethods.WorkspaceSymbol,
         LspMethods.WorkspaceSymbolResolve,

@@ -47,7 +47,8 @@ For diagnostics, omit `file` to scan C# files or use a glob such as `src/**/*.cs
 `severity` defaults to `warning`, which reports errors and warnings. Set it to `information` or `hint` to include analyzer suggestions.
 `belowSeverity` counts the diagnostics left out by the severity filter.
 Each diagnostic gives its one-based start `line` and `character`, its `severity`, `code` and `message`.
-`complete` reports a completed scan. When `truncated` is true, omitted files are not necessarily clean.
+`complete` is false when a scanned file is not attached to a project, for example a file outside every project.
+These files are listed in `miscellaneousFiles` and get no semantic diagnostics. A newly created file gets a few seconds to join its project first. When `truncated` is true, omitted files are not necessarily clean.
 `limit` defaults to 50 and accepts 1 to 250. Narrow the query if results are truncated or too large.
 
 ## Preview and apply

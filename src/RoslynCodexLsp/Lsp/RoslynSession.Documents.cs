@@ -91,6 +91,23 @@ internal sealed partial class RoslynSession
     }
 
     /// <summary>
+    /// Announces requested files that the file watcher has not reported yet.
+    /// Without the creation notice, Roslyn keeps a new file outside its project.
+    /// </summary>
+    public async Task SynchronizeNewFilesAsync(
+        IEnumerable<string> files,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var file in files.Where(file => !_workspaceFiles.ContainsKey(file)))
+        {
+            QueueFile(file);
+        }
+
+        await SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Resends snapshot files whose content changed since the last snapshot sync.
     /// Compares content fingerprints, not metadata, so an edit that keeps the size and timestamp is still sent.
     /// </summary>
