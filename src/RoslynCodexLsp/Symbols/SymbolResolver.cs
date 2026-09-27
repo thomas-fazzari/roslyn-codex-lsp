@@ -33,13 +33,8 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
         var declarations = new List<SymbolDeclaration>();
         foreach (var file in await CandidateFilesAsync(requested, cancellationToken))
         {
-            var uri = await session.OpenDocumentAsync(file, cancellationToken);
-            var symbols = await session.RequestAsync(
-                LspMethods.TextDocumentDocumentSymbol,
-                new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = uri } },
-                cancellationToken
-            );
-            declarations.AddRange(FindDeclarations(symbols as JsonArray ?? [], file, requested));
+            var symbols = await DocumentSymbolsAsync(file, cancellationToken);
+            declarations.AddRange(FindDeclarations(symbols, file, requested));
         }
 
         // Partial declarations of one symbol share its name
@@ -65,6 +60,43 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
     }
 
     /// <summary>
+    /// Returns the names of the declarations at one-based positions in workspace files,
+    /// in the format <see cref="ResolveAsync"/> accepts. Positions without a declaration are omitted.
+    /// </summary>
+    public async Task<
+        IReadOnlyDictionary<(string File, int Line, int Character), string>
+    > NamesAsync(
+        IEnumerable<(string File, int Line, int Character)> positions,
+        CancellationToken cancellationToken
+    )
+    {
+        var names = new Dictionary<(string File, int Line, int Character), string>();
+        foreach (var file in positions.GroupBy(position => position.File, StringComparer.Ordinal))
+        {
+            var declarations = Declarations(
+                    await DocumentSymbolsAsync(file.Key, cancellationToken),
+                    file.Key,
+                    container: null,
+                    containerDisplay: null
+                )
+                .ToList();
+            foreach (var position in file)
+            {
+                var match = declarations.FirstOrDefault(declared =>
+                    declared.Declaration.Line == position.Line
+                    && declared.Declaration.Character == position.Character
+                );
+                if (match.Declaration is not null)
+                {
+                    names[position] = match.Declaration.Name;
+                }
+            }
+        }
+
+        return names;
+    }
+
+    /// <summary>
     /// Returns the declarations in a document symbol tree that <paramref name="requested"/> selects.
     /// A constructor is selected only when the request includes its parameter list.
     /// </summary>
@@ -72,12 +104,32 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
         JsonArray documentSymbols,
         string file,
         SymbolName requested
-    ) => Walk(documentSymbols, file, requested, container: null, containerDisplay: null);
+    ) =>
+        Declarations(documentSymbols, file, container: null, containerDisplay: null)
+            .Where(declared =>
+                requested.Selects(declared.Name)
+                && (!declared.IsConstructor || requested.Parameters is not null)
+            )
+            .Select(declared => declared.Declaration);
 
-    private static IEnumerable<SymbolDeclaration> Walk(
+    private async Task<JsonArray> DocumentSymbolsAsync(
+        string file,
+        CancellationToken cancellationToken
+    )
+    {
+        var uri = await session.OpenDocumentAsync(file, cancellationToken);
+        var symbols = await session.RequestAsync(
+            LspMethods.TextDocumentDocumentSymbol,
+            new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = uri } },
+            cancellationToken
+        );
+        return symbols as JsonArray ?? [];
+    }
+
+    // Namespaces only qualify their members, so they are not declarations here
+    private static IEnumerable<DeclaredSymbol> Declarations(
         JsonArray symbols,
         string file,
-        SymbolName requested,
         SymbolName? container,
         string? containerDisplay
     )
@@ -93,40 +145,31 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
             var name = container is null ? member : container.Append(member);
             var display = SymbolName.WithoutType(rawName);
             display = containerDisplay is null ? display : $"{containerDisplay}.{display}";
-            if (
-                IsSelected(symbol, requested, name, IsConstructor(member, container))
-                && symbol["selectionRange"]?["start"] is { } start
-            )
+            var kind = symbol["kind"]?.GetValue<int>();
+            if (kind is not NamespaceKind && symbol["selectionRange"]?["start"] is { } start)
             {
-                yield return new SymbolDeclaration(
-                    display,
-                    symbol["kind"]?.GetValue<int>(),
-                    file,
-                    start["line"]!.GetValue<int>() + 1,
-                    start["character"]!.GetValue<int>() + 1
+                yield return new DeclaredSymbol(
+                    name,
+                    IsConstructor(member, container),
+                    new SymbolDeclaration(
+                        display,
+                        kind,
+                        file,
+                        start["line"]!.GetValue<int>() + 1,
+                        start["character"]!.GetValue<int>() + 1
+                    )
                 );
             }
 
             if (symbol["children"] is JsonArray children)
             {
-                foreach (var declaration in Walk(children, file, requested, name, display))
+                foreach (var declared in Declarations(children, file, name, display))
                 {
-                    yield return declaration;
+                    yield return declared;
                 }
             }
         }
     }
-
-    // Namespaces only qualify their members
-    private static bool IsSelected(
-        JsonObject symbol,
-        SymbolName requested,
-        SymbolName name,
-        bool isConstructor
-    ) =>
-        symbol["kind"]?.GetValue<int>() is not NamespaceKind
-        && requested.Selects(name)
-        && (!isConstructor || requested.Parameters is not null);
 
     private static bool IsConstructor(SymbolName member, SymbolName? container) =>
         container is not null
@@ -170,4 +213,10 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
                 .Take(MaximumCandidates)
                 .Select(declaration => (JsonNode)declaration.ToJson(paths)),
         ];
+
+    private readonly record struct DeclaredSymbol(
+        SymbolName Name,
+        bool IsConstructor,
+        SymbolDeclaration Declaration
+    );
 }

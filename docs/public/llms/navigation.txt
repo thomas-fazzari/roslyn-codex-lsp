@@ -53,8 +53,17 @@ limit defaults to 50 and accepts 1 through 250. Inspect truncated before claimin
 a complete reference or implementation list. No matches returns items: [].
 
 callers, callees, supertypes and subtypes return:
-{"items":[{"name":"Consumer.Run(IGreeter)","kind":"method","file":"src/Consumer.cs","position":[7,26],"calls":[[7,59]]}],"total":1,"truncated":false}
-calls is present only for callers and callees.
+{"items":[{"symbol":"MyApp.Consumer.Run(IGreeter)","kind":"method","file":"src/Consumer.cs","position":[7,26],"calls":[[7,59]]}],"total":1,"truncated":false}
+symbol can be sent back unchanged as the symbol argument. A result outside the
+workspace keeps Roslyn's name instead. calls is present only for callers and callees.
+
+CONTEXT
+-------
+Add "context":true to receive lines, a map from line number to the trimmed source
+line of each result, without reading the file:
+navigate {"action":"references","symbol":"Calculator.Add","context":true}
+For callers and callees, lines holds the call sites. Callee call sites are in the
+requested file. context uses more tokens, so request it only when needed.
 
 Symbols return items with name, kind, file and position. Document symbols omit
 file and nest members in children. Hover returns {"text":"..."} in Markdown.

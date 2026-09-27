@@ -29,6 +29,10 @@ internal sealed class NavigateTool(LspTool lsp)
         [Description(ToolDescriptions.File)] string? file = null,
         [Description(ToolDescriptions.Line)] int? line = null,
         [Description(ToolDescriptions.Character)] int? character = null,
+        [Description(
+            "Add lines, a map from line number to the trimmed source line of each result. Uses more tokens."
+        )]
+            bool context = false,
         [Description(ToolDescriptions.Limit)] int limit = LspRequest.DefaultResultLimit,
         CancellationToken cancellationToken = default
     ) =>
@@ -52,6 +56,7 @@ internal sealed class NavigateTool(LspTool lsp)
                 File = file,
                 Line = line,
                 Character = character,
+                Context = context,
             },
             cancellationToken
         );

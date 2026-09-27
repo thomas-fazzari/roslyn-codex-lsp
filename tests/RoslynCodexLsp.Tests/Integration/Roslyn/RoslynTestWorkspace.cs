@@ -147,7 +147,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
             or LspAction.Supertypes
             or LspAction.Subtypes => (
                 NavigateTool.Name,
-                new[] { "action", "symbol", "file", "line", "character", "limit" }
+                new[] { "action", "symbol", "file", "line", "character", "context", "limit" }
             ),
             LspAction.Rename or LspAction.RenameFile or LspAction.CodeActions => (
                 EditTool.Name,
@@ -189,6 +189,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
             ["method"] = request.Method,
             ["parameters"] = request.Parameters,
             ["apply"] = request.Apply ? true : null,
+            ["context"] = request.Context ? true : null,
             ["limit"] = request.Limit,
         };
         return (

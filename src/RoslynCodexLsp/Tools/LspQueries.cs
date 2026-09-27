@@ -53,9 +53,18 @@ internal sealed class LspQueries(
         }
 
         var result = await session.RequestAsync(method, parameters, cancellationToken);
-        return request.Action is LspAction.Hover
-            ? result.ToCompactHover()
-            : result.ToCompactLocations(paths, request.Limit);
+        if (request.Action is LspAction.Hover)
+        {
+            return result.ToCompactHover();
+        }
+
+        var locations = result.ToCompactLocations(paths, request.Limit);
+        if (request.Context)
+        {
+            SourceLines.Add(locations, paths, callSiteFile: null);
+        }
+
+        return locations;
     }
 
     private async Task<JsonObject> HierarchyAsync(
@@ -96,7 +105,57 @@ internal sealed class LspQueries(
             }
         }
 
-        return related.ToCompactHierarchy(paths, request.Limit);
+        var result = related.ToCompactHierarchy(paths, request.Limit);
+        await NameSymbolsAsync(result, cancellationToken);
+        if (request.Context)
+        {
+            // Outgoing call sites are in the requested document, not in the callee's file
+            var callSiteFile =
+                request.Action is LspAction.Callees
+                    ? paths.TryGetWorkspaceFile(
+                        position["textDocument"]!["uri"]!.GetValue<string>()
+                    )
+                    : null;
+            SourceLines.Add(result, paths, callSiteFile);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Replaces the name and container Roslyn reports with a symbol name that navigate and edit accept.
+    /// Items without a declaration in a workspace file keep Roslyn's name.
+    /// </summary>
+    private async Task NameSymbolsAsync(JsonObject result, CancellationToken cancellationToken)
+    {
+        var positions = new List<(JsonObject Item, (string File, int Line, int Character) Key)>();
+        foreach (var item in (result["items"] as JsonArray ?? []).OfType<JsonObject>())
+        {
+            if (
+                item["file"]?.GetValue<string>() is { } file
+                && paths.ResultFilePath(file) is { } path
+                && item["position"] is JsonArray position
+            )
+            {
+                positions.Add(
+                    (item, (path, position[0]!.GetValue<int>(), position[1]!.GetValue<int>()))
+                );
+            }
+        }
+
+        var names = await resolver.NamesAsync(
+            positions.Select(position => position.Key),
+            cancellationToken
+        );
+        foreach (var (item, key) in positions)
+        {
+            if (names.TryGetValue(key, out var name))
+            {
+                item.Remove("name");
+                item.Remove("detail");
+                item.Insert(0, "symbol", name);
+            }
+        }
     }
 
     public async Task<JsonNode?> SymbolsAsync(

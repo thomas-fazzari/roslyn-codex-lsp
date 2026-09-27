@@ -34,6 +34,8 @@ Pass `file`, `line` and `character`. Input positions start at 1 and count UTF-16
 Navigation returns `items` grouped by `file`, with one-based `[line, character]` pairs in `positions`.
 `total` counts occurrences before limiting. Check `truncated` before claiming completeness.
 Use `callers`, `callees`, `supertypes` and `subtypes` for call and type relationships.
+Related symbols return a `symbol` name that can be sent back unchanged, for example to follow callers of callers.
+Set `context: true` to receive each result's source line instead of reading the file.
 Diagnostics, symbols and related symbols also return one-based positions. Only raw `lsp` requests use zero-based LSP positions.
 Use `lsp` with `capabilities` when an operation's support is uncertain.
 

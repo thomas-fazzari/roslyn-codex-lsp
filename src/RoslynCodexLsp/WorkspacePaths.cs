@@ -111,6 +111,13 @@ internal sealed class WorkspacePaths(string root)
         return IsOutside(Path.GetRelativePath(Root, fullPath)) ? null : fullPath;
     }
 
+    /// <summary>
+    /// Returns the full path of a file reported in a tool result, which is workspace-relative,
+    /// or null for an external or generated location, which keeps its URI.
+    /// </summary>
+    public string? ResultFilePath(string file) =>
+        file.Contains("://", StringComparison.Ordinal) ? null : Path.GetFullPath(file, Root);
+
     public string RelativePath(string fullPath) =>
         Path.GetRelativePath(Root, fullPath).Replace(Path.DirectorySeparatorChar, '/');
 

@@ -41,7 +41,8 @@ This applies to `definition`, `type_definition`, `implementation` and `reference
 Workspace files use relative paths. External and generated locations keep their absolute URI.
 Location links use the target selection start. Use the `lsp` tool with `action=request` for full LSP ranges and metadata.
 `callers`, `callees`, `supertypes` and `subtypes` return `items` of related symbols.
-Each symbol gives its `name`, `kind`, `file` and one-based `position`. Calls also list their call sites in `calls`.
+Each item gives a `symbol` name that `navigate` and `edit` accept unchanged, its `kind`, `file` and one-based `position`.
+Calls also list their call sites in `calls`. Set `context` to add `lines`, the trimmed source line of each result.
 For `callers`, call sites are in the caller's file. For `callees`, they are in the requested file.
 `hover` returns its Markdown `text`. `symbols` returns `items` with the same symbol fields, nested in `children` for a file.
 Only raw requests keep zero-based LSP positions.

@@ -138,6 +138,37 @@ public sealed class RoslynMcpTests
         caller["file"]!.GetValue<string>().Should().Be(ConsumerFile);
         caller["calls"]!.AsArray().Should().ContainSingle();
 
+        // A returned symbol name resolves back to its declaration
+        var callerSymbol = caller["symbol"]!.GetValue<string>();
+        AssertSingleLocation(
+            await workspace.CallAsync(
+                new LspRequest { Action = LspAction.Definition, Symbol = callerSymbol }
+            ),
+            ConsumerFile
+        );
+
+        var withContext = await workspace.CallAsync(
+            new LspRequest
+            {
+                Action = LspAction.References,
+                Symbol = "IGreeter.Greet",
+                Context = true,
+            }
+        );
+        withContext["result"]!["items"]!
+            .AsArray()
+            .Single(item =>
+                string.Equals(
+                    item!["file"]!.GetValue<string>(),
+                    ConsumerFile,
+                    StringComparison.Ordinal
+                )
+            )!["lines"]!
+            .AsObject()
+            .Select(line => line.Value!.GetValue<string>())
+            .Should()
+            .ContainSingle(line => line.Contains("greeter.Greet(", StringComparison.Ordinal));
+
         var subtypes = await workspace.CallAsync(
             await workspace.AtAsync(LspAction.Subtypes, ContractFile, "IGreeter")
         );
