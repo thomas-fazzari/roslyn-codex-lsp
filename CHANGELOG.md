@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Rename to Roslyn4Clankers, since we now supports Claude Code too.
+- Install files in `roslyn-for-clankers`. The installer removes the previous `roslyn-codex-lsp` installation once every installed client uses the new one.
+- Support Claude Code in the installers. They set up every installed client among Codex and Claude Code, or the one selected with `--client` (`-Client` in PowerShell).
+- Add `context` to `navigate` to return the source line of each result.
+- **Breaking:** return a `symbol` name for `callers`, `callees`, `supertypes` and `subtypes` results instead of `name` and `detail`. The name can be sent back as the `symbol` argument.
+
 ## 0.2.2
 
 - Accept a `symbol` name instead of a position in `navigate` and `edit`, such as `Calculator.Add` or `Calculator.Add(int, int)`.
