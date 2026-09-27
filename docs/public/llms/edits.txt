@@ -8,7 +8,10 @@ authorized edits and validation without adding a separate approval step.
 RENAME A SYMBOL
 ---------------
 1. Request a preview at a one-based symbol position:
-edit {"action":"rename","file":"src/Calculator.cs","line":12,"character":9,"newName":"Compute"}
+edit {"action":"rename","symbol":"Calculator.Add","newName":"Compute"}
+
+A symbol name replaces file, line and character, as in navigation.txt.
+code_actions also accepts symbol. A selection still needs file and positions.
 
 2. Read the changed files and edits. Apply the returned proposalId:
 edit {"action":"rename","proposalId":"ID_FROM_PREVIEW","apply":true}

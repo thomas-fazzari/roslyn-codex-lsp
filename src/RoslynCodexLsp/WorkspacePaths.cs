@@ -71,11 +71,7 @@ internal sealed class WorkspacePaths(string root)
             Uri.TryCreate(file, UriKind.Absolute, out var uri) && uri.IsFile ? uri.LocalPath : file;
         var fullPath = Path.GetFullPath(local, Root);
         var relative = Path.GetRelativePath(Root, fullPath);
-        if (
-            Path.IsPathRooted(relative)
-            || string.Equals(relative, "..", StringComparison.Ordinal)
-            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-        )
+        if (IsOutside(relative))
         {
             throw new ArgumentException("The path must be inside the workspace.", nameof(file));
         }
@@ -100,6 +96,28 @@ internal sealed class WorkspacePaths(string root)
     }
 
     public string ToUri(string file) => new Uri(Resolve(file)).AbsoluteUri;
+
+    /// <summary>
+    /// Returns the full path of a file URI inside the workspace, or null for any other location.
+    /// </summary>
+    public string? TryGetWorkspaceFile(string uri)
+    {
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var location) || !location.IsFile)
+        {
+            return null;
+        }
+
+        var fullPath = Path.GetFullPath(location.LocalPath);
+        return IsOutside(Path.GetRelativePath(Root, fullPath)) ? null : fullPath;
+    }
+
+    public string RelativePath(string fullPath) =>
+        Path.GetRelativePath(Root, fullPath).Replace(Path.DirectorySeparatorChar, '/');
+
+    private static bool IsOutside(string relative) =>
+        Path.IsPathRooted(relative)
+        || string.Equals(relative, "..", StringComparison.Ordinal)
+        || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
     public static bool IsExcludedDirectory(string name) => ExcludedDirectories.Contains(name);
 

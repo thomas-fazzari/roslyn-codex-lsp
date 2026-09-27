@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Lsp;
+using RoslynCodexLsp.Symbols;
 using StreamJsonRpc;
 
 namespace RoslynCodexLsp.Tools;
@@ -107,6 +108,15 @@ internal sealed partial class LspTool(
         catch (StaleEditException exception)
         {
             return Failure(request.Action, StaleEditErrorCode, exception.Message);
+        }
+        catch (SymbolResolutionException exception)
+        {
+            return Failure(
+                request.Action,
+                exception.Code,
+                exception.Message,
+                candidates: exception.Candidates
+            );
         }
         catch (RemoteInvocationException exception)
         {
@@ -412,18 +422,23 @@ internal sealed partial class LspTool(
         LspAction action,
         string code,
         string message,
-        int? rpcCode = null
-    ) =>
-        Response(
-            action,
-            result: null,
-            new JsonObject
-            {
-                ["code"] = code,
-                ["message"] = message,
-                ["rpcCode"] = rpcCode,
-            }
-        );
+        int? rpcCode = null,
+        JsonArray? candidates = null
+    )
+    {
+        var error = new JsonObject
+        {
+            ["code"] = code,
+            ["message"] = message,
+            ["rpcCode"] = rpcCode,
+        };
+        if (candidates is { Count: > 0 })
+        {
+            error["candidates"] = candidates;
+        }
+
+        return Response(action, result: null, error);
+    }
 
     [LoggerMessage(
         Level = LogLevel.Debug,

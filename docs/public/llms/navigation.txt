@@ -1,10 +1,23 @@
 SYMBOL NAVIGATION
 =================
 
-Select a position inside the symbol. file is workspace-relative.
-line and character are one-based. character counts UTF-16 code units.
+Name the symbol, or select a position inside it.
 
-Definition:
+By name:
+navigate {"action":"references","symbol":"Calculator.Add"}
+
+symbol matches the end of the fully qualified name: Add, Calculator.Add or
+MyApp.Math.Calculator.Add. A parameter list selects an overload: Calculator.Add(int, int).
+Generic arguments are optional: Box.Put and Box<T>.Put are the same name.
+A constructor needs its parameter list: Calculator(ILogger).
+Partial declarations count as one symbol.
+
+If the name matches several symbols, the error ambiguous_symbol lists up to 20
+candidates. Each candidate symbol can be sent back unchanged. symbol_not_found means
+no declaration matched. Use the symbols tool to search by partial name.
+
+By position (file is workspace-relative, line and character are one-based,
+character counts UTF-16 code units):
 navigate {"action":"definition","file":"src/Calculator.cs","line":12,"character":9}
 
 Replace action with:

@@ -17,6 +17,8 @@ internal sealed record LspRequest
 
     public string? File { get; init; }
 
+    public string? Symbol { get; init; }
+
     public int? Line { get; init; }
 
     public int? Character { get; init; }

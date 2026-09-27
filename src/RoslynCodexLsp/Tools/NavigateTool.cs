@@ -21,13 +21,14 @@ internal sealed class NavigateTool(LspTool lsp)
         OpenWorld = false
     )]
     [Description(
-        "Find the definition, type definition, implementations, references, callers, callees, supertypes or subtypes of the C# symbol at a position, or read its hover information. Positions are one-based."
+        "Find the definition, type definition, implementations, references, callers, callees, supertypes or subtypes of a C# symbol, or read its hover information. Name the symbol, or give its one-based position."
     )]
     public Task<CallToolResult> NavigateAsync(
         [Description("Navigation to perform.")] NavigationAction action,
-        [Description(ToolDescriptions.File)] string file,
-        [Description(ToolDescriptions.Line)] int line,
-        [Description(ToolDescriptions.Character)] int character,
+        [Description(ToolDescriptions.Symbol)] string? symbol = null,
+        [Description(ToolDescriptions.File)] string? file = null,
+        [Description(ToolDescriptions.Line)] int? line = null,
+        [Description(ToolDescriptions.Character)] int? character = null,
         [Description(ToolDescriptions.Limit)] int limit = LspRequest.DefaultResultLimit,
         CancellationToken cancellationToken = default
     ) =>
@@ -47,6 +48,7 @@ internal sealed class NavigateTool(LspTool lsp)
                     NavigationAction.Supertypes => LspAction.Supertypes,
                     _ => LspAction.Subtypes,
                 },
+                Symbol = symbol,
                 File = file,
                 Line = line,
                 Character = character,

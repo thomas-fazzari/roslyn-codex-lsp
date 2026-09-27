@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using RoslynCodexLsp.Lsp;
+using RoslynCodexLsp.Symbols;
 using RoslynCodexLsp.Tools;
 
 namespace RoslynCodexLsp.Tests.Integration.Roslyn;
@@ -298,6 +299,47 @@ public sealed class RoslynMcpTests
         var refreshed = await workspace.CallAsync(request);
         Locations(refreshed).Should().NotContain(ConsumerFile);
         (await workspace.ReadFileAsync(ConsumerFile)).Should().Be(changed);
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task NavigatesAndRenamesBySymbolNameAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+
+        var references = await workspace.CallAsync(
+            new LspRequest { Action = LspAction.References, Symbol = "IGreeter.Greet" }
+        );
+        Locations(references).Should().Contain(ConsumerFile).And.NotContain(OtherGreeterFile);
+
+        var ambiguous = await workspace.CallRawAsync(
+            new LspRequest { Action = LspAction.Definition, Symbol = "Greet" }
+        );
+        AssertError(ambiguous, SymbolResolver.AmbiguousErrorCode);
+        var candidates = JsonSerializer.SerializeToNode(ambiguous.StructuredContent)!["error"]![
+            "candidates"
+        ]!
+            .AsArray()
+            .Select(candidate => candidate!["symbol"]!.GetValue<string>())
+            .ToArray();
+        candidates.Should().HaveCount(3);
+        var contract = candidates.Should().ContainSingle(name => name.Contains("IGreeter")).Which;
+        AssertSingleLocation(
+            await workspace.CallAsync(
+                new LspRequest { Action = LspAction.Definition, Symbol = contract }
+            ),
+            ContractFile
+        );
+
+        var preview = await workspace.CallAsync(
+            new LspRequest
+            {
+                Action = LspAction.Rename,
+                Symbol = "Consumer.Run",
+                NewName = "Execute",
+            }
+        );
+        PreviewFiles(preview).Should().Equal(ConsumerFile);
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]

@@ -52,7 +52,7 @@ public sealed class ToolSchemaTests
     [InlineData(DiagnosticsTool.Name, new string[0], null)]
     [InlineData(
         NavigateTool.Name,
-        new[] { "action", "file", "line", "character" },
+        new[] { "action" },
         new[]
         {
             "definition",

@@ -14,13 +14,13 @@ Available fixes and refactorings depend on the installed Roslyn version and proj
 
 ## Tools
 
-| Tool          | Arguments                                                                                                                                                        | Result                                                                        |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `diagnostics` | `file` path or glob, `severity`                                                                                                                                  | Errors, warnings and suggestions                                              |
-| `navigate`    | `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), `file`, `line`, `character` | Locations, related symbols or hover text                                      |
-| `symbols`     | `file` or `query`                                                                                                                                                | Document or workspace symbols                                                 |
-| `edit`        | `action` (`rename`, `rename_file`, `code_actions`) and its inputs                                                                                                | Edit previews, then applied changes                                           |
-| `lsp`         | `action` (`status`, `capabilities`, `reload`, `request`), `method`, `parameters`                                                                                 | Session state, a fresh session or a raw Language Server Protocol (LSP) result |
+| Tool          | Arguments                                                                                                                                                                        | Result                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `diagnostics` | `file` path or glob, `severity`                                                                                                                                                  | Errors, warnings and suggestions                                              |
+| `navigate`    | `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), and `symbol` or `file`, `line`, `character` | Locations, related symbols or hover text                                      |
+| `symbols`     | `file` or `query`                                                                                                                                                                | Document or workspace symbols                                                 |
+| `edit`        | `action` (`rename`, `rename_file`, `code_actions`) and its inputs                                                                                                                | Edit previews, then applied changes                                           |
+| `lsp`         | `action` (`status`, `capabilities`, `reload`, `request`), `method`, `parameters`                                                                                                 | Session state, a fresh session or a raw Language Server Protocol (LSP) result |
 
 `diagnostics`, `navigate` and `symbols` are read-only. `edit` and `lsp` can write files.
 Arguments are passed directly to each tool:
@@ -28,6 +28,11 @@ Arguments are passed directly to each tool:
 ```json
 { "action": "definition", "file": "src/Calculator.cs", "line": 12, "character": 9 }
 ```
+
+`navigate` and `edit` accept a `symbol` name instead of a position, for example `Calculator.Add`.
+The name matches the end of the fully qualified name. A parameter list selects an overload, as in `Calculator.Add(int, int)`.
+A constructor needs its parameter list. An ambiguous name returns the error `ambiguous_symbol` with up to 20 `candidates`.
+Each candidate `symbol` can be sent back unchanged.
 
 Paths are relative to the workspace. Input coordinates start at **1**, with characters counted as UTF-16 code units.
 Navigation results group occurrences by file in `items`, with one-based `[line, character]` pairs in `positions`.

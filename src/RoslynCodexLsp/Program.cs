@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Lsp;
+using RoslynCodexLsp.Symbols;
 using RoslynCodexLsp.Tools;
 
 namespace RoslynCodexLsp;
@@ -35,6 +36,7 @@ internal static class Program
         builder.Services.AddSingleton(new WorkspacePaths(options.WorkspaceRoot));
         builder.Services.AddSingleton<RoslynSession>();
         builder.Services.AddSingleton<WorkspaceEditService>();
+        builder.Services.AddSingleton<SymbolResolver>();
         builder.Services.AddSingleton<LspQueries>();
         builder.Services.AddSingleton<LspChanges>();
         builder.Services.AddSingleton<LspTool>();

@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using RoslynCodexLsp.Editing;
 using RoslynCodexLsp.Lsp;
+using RoslynCodexLsp.Symbols;
 using RoslynCodexLsp.Tools;
 
 namespace RoslynCodexLsp.Tests.Unit.Tools;
@@ -121,7 +122,8 @@ public sealed class LspApplicationTests
                 paths,
                 NullLogger<RoslynSession>.Instance
             );
-            var changes = new LspChanges(session, paths, edits, new LspQueries(session, paths));
+            var queries = new LspQueries(session, paths, new SymbolResolver(session, paths));
+            var changes = new LspChanges(session, paths, edits, queries);
             var snapshot = await edits.CaptureAsync(cancellationToken);
             var edit = new JsonObject
             {

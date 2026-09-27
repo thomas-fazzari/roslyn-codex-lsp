@@ -9,7 +9,7 @@ Use the `roslyn` server for C# diagnostics, navigation and semantic edits.
 It reads saved files in the current workspace. Its tools take flat arguments:
 
 - `diagnostics`: `{ "file": "src/Calculator.cs" }`. It reports errors and warnings unless `severity` is `information` or `hint`
-- `navigate`: `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), `file`, `line`, `character`
+- `navigate`: `action` (`definition`, `type_definition`, `implementation`, `references`, `callers`, `callees`, `supertypes`, `subtypes`, `hover`), and `symbol` or `file`, `line`, `character`
 - `symbols`: `file`, or `query` for a workspace search
 - `edit`: `action` (`rename`, `rename_file`, `code_actions`) with its inputs, `proposalId` and `apply`
 - `lsp`: `action` (`status`, `capabilities`, `reload`, `request`), and `method` with `parameters` for raw requests
@@ -27,6 +27,9 @@ It reads saved files in the current workspace. Its tools take flat arguments:
 ## Navigation
 
 Use `navigate` with `definition`, `implementation` or `references` when symbol identity matters.
+Prefer `symbol` over a position when you know the name, for example `"symbol": "Calculator.Add"`. It avoids reading the file first.
+The name matches the end of the qualified name. Add a parameter list for an overload or a constructor.
+On `ambiguous_symbol`, send back one of the returned `candidates` unchanged.
 Pass `file`, `line` and `character`. Input positions start at 1 and count UTF-16 code units.
 Navigation returns `items` grouped by `file`, with one-based `[line, character]` pairs in `positions`.
 `total` counts occurrences before limiting. Check `truncated` before claiming completeness.

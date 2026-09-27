@@ -5,11 +5,16 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.FileSystemGlobbing;
 using RoslynCodexLsp.Lsp;
+using RoslynCodexLsp.Symbols;
 using StreamJsonRpc;
 
 namespace RoslynCodexLsp.Tools;
 
-internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
+internal sealed class LspQueries(
+    RoslynSession session,
+    WorkspacePaths paths,
+    SymbolResolver resolver
+)
 {
     private const int MaximumDiagnosticFiles = 1000;
     private static readonly TimeSpan _projectAttachTimeout = TimeSpan.FromSeconds(5);
@@ -290,22 +295,55 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
         CancellationToken cancellationToken
     )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.File, nameof(request));
-        if (request.Line is not > 0 || request.Character is not > 0)
-        {
-            throw new ArgumentException("Provide a one-based line and character.", nameof(request));
-        }
-
-        var uri = await session.OpenDocumentAsync(request.File, cancellationToken);
+        var (file, line, character) = await LocateAsync(request, cancellationToken);
+        var uri = await session.OpenDocumentAsync(file, cancellationToken);
         return new JsonObject
         {
             ["textDocument"] = new JsonObject { ["uri"] = uri },
-            ["position"] = new JsonObject
-            {
-                ["line"] = request.Line.Value - 1,
-                ["character"] = request.Character.Value - 1,
-            },
+            ["position"] = new JsonObject { ["line"] = line - 1, ["character"] = character - 1 },
         };
+    }
+
+    /// <summary>
+    /// Returns the one-based position a request targets, from its symbol name or its explicit position.
+    /// </summary>
+    private async Task<(string File, int Line, int Character)> LocateAsync(
+        LspRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.Symbol is not null)
+        {
+            if (
+                request
+                is not {
+                    File: null,
+                    Line: null,
+                    Character: null,
+                    EndLine: null,
+                    EndCharacter: null,
+                }
+            )
+            {
+                throw new ArgumentException(
+                    "Pass either symbol, or a file with a line and character.",
+                    nameof(request)
+                );
+            }
+
+            var declaration = await resolver.ResolveAsync(request.Symbol, cancellationToken);
+            return (declaration.File, declaration.Line, declaration.Character);
+        }
+
+        if (request is not { File: not null, Line: > 0, Character: > 0 })
+        {
+            throw new ArgumentException(
+                "Provide symbol, or a file with a one-based line and character.",
+                nameof(request)
+            );
+        }
+
+        return (request.File, request.Line.Value, request.Character.Value);
     }
 
     public static JsonObject Document(string uri) =>

@@ -147,12 +147,13 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
             or LspAction.Supertypes
             or LspAction.Subtypes => (
                 NavigateTool.Name,
-                new[] { "action", "file", "line", "character", "limit" }
+                new[] { "action", "symbol", "file", "line", "character", "limit" }
             ),
             LspAction.Rename or LspAction.RenameFile or LspAction.CodeActions => (
                 EditTool.Name,
                 [
                     "action",
+                    "symbol",
                     "file",
                     "line",
                     "character",
@@ -173,6 +174,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
                 .SerializeToNode(request.Action, BridgeJsonContext.Default.LspAction)!
                 .GetValue<string>(),
             ["file"] = request.File,
+            ["symbol"] = request.Symbol,
             ["severity"] = JsonSerializer
                 .SerializeToNode(request.Severity, BridgeJsonContext.Default.DiagnosticSeverity)!
                 .GetValue<string>(),

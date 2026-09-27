@@ -25,6 +25,7 @@ internal sealed class EditTool(LspTool lsp)
     )]
     public Task<CallToolResult> EditAsync(
         [Description("Edit to preview or apply.")] EditAction action,
+        [Description(ToolDescriptions.Symbol)] string? symbol = null,
         [Description(ToolDescriptions.File)] string? file = null,
         [Description(ToolDescriptions.Line)] int? line = null,
         [Description(ToolDescriptions.Character)] int? character = null,
@@ -53,6 +54,7 @@ internal sealed class EditTool(LspTool lsp)
                     EditAction.RenameFile => LspAction.RenameFile,
                     _ => LspAction.CodeActions,
                 },
+                Symbol = symbol,
                 File = file,
                 Line = line,
                 Character = character,

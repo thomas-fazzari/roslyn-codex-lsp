@@ -1,8 +1,8 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
-using System.Collections.Frozen;
 using System.Text.Json.Nodes;
+using RoslynCodexLsp.Lsp;
 
 namespace RoslynCodexLsp.Tools;
 
@@ -145,43 +145,13 @@ internal static class LspResultsExtensions
         }
     }
 
-    private static readonly FrozenDictionary<int, string> _symbolKinds = new Dictionary<int, string>
-    {
-        [1] = "file",
-        [2] = "module",
-        [3] = "namespace",
-        [4] = "package",
-        [5] = "class",
-        [6] = "method",
-        [7] = "property",
-        [8] = "field",
-        [9] = "constructor",
-        [10] = "enum",
-        [11] = "interface",
-        [12] = "function",
-        [13] = "variable",
-        [14] = "constant",
-        [15] = "string",
-        [16] = "number",
-        [17] = "boolean",
-        [18] = "array",
-        [19] = "object",
-        [20] = "key",
-        [21] = "null",
-        [22] = "enum_member",
-        [23] = "struct",
-        [24] = "event",
-        [25] = "operator",
-        [26] = "type_parameter",
-    }.ToFrozenDictionary();
-
     private static JsonObject CompactSymbol(JsonNode symbol, WorkspacePaths paths)
     {
         var name = symbol["name"]?.GetValue<string>();
         var compact = new JsonObject { ["name"] = name };
         if (
             symbol["kind"]?.GetValue<int>() is { } kind
-            && _symbolKinds.TryGetValue(kind, out var kindName)
+            && LspSymbolKinds.TryGetName(kind, out var kindName)
         )
         {
             compact["kind"] = kindName;
@@ -239,20 +209,7 @@ internal static class LspResultsExtensions
             _ => string.Empty,
         };
 
-    private static string LocationFile(string value, WorkspacePaths paths)
-    {
-        var uri = new Uri(value);
-        if (!uri.IsFile)
-        {
-            return value;
-        }
-
-        var relative = Path.GetRelativePath(paths.Root, uri.LocalPath);
-        return
-            Path.IsPathRooted(relative)
-            || string.Equals(relative, "..", StringComparison.Ordinal)
-            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-            ? value
-            : relative.Replace(Path.DirectorySeparatorChar, '/');
-    }
+    // Workspace files use relative paths. External and generated locations keep their URI.
+    private static string LocationFile(string value, WorkspacePaths paths) =>
+        paths.TryGetWorkspaceFile(value) is { } file ? paths.RelativePath(file) : value;
 }
