@@ -6,7 +6,7 @@ using RoslynCodexLsp.Tools;
 
 namespace RoslynCodexLsp.Tests.Unit.Tools;
 
-public sealed class LspQueriesTests
+public sealed class LspResultsExtensionsTests
 {
     private static readonly WorkspacePaths _paths = new(
         Path.Combine(Path.GetTempPath(), "queries")
@@ -21,7 +21,7 @@ public sealed class LspQueriesTests
             Location("First.cs", 20, 8)
         );
 
-        var result = LspQueries.CompactLocations(locations, _paths, LspRequest.DefaultResultLimit);
+        var result = locations.ToCompactLocations(_paths, LspRequest.DefaultResultLimit);
 
         result["total"]!.GetValue<int>().Should().Be(3);
         result["truncated"]!.GetValue<bool>().Should().BeFalse();
@@ -41,15 +41,13 @@ public sealed class LspQueriesTests
     [Fact]
     public void LimitsOccurrencesBeforeGroupingAndPreservesTotal()
     {
-        var result = LspQueries.CompactLocations(
-            new JsonArray(
-                Location("First.cs", 0, 0),
-                Location("First.cs", 1, 0),
-                Location("Second.cs", 2, 0)
-            ),
-            _paths,
-            2
+        var locations = new JsonArray(
+            Location("First.cs", 0, 0),
+            Location("First.cs", 1, 0),
+            Location("Second.cs", 2, 0)
         );
+
+        var result = locations.ToCompactLocations(_paths, 2);
 
         result["total"]!.GetValue<int>().Should().Be(3);
         result["truncated"]!.GetValue<bool>().Should().BeTrue();
@@ -74,7 +72,7 @@ public sealed class LspQueriesTests
             };
         }
 
-        var result = LspQueries.CompactLocations(location, _paths, LspRequest.DefaultResultLimit);
+        var result = location.ToCompactLocations(_paths, LspRequest.DefaultResultLimit);
 
         result["total"]!.GetValue<int>().Should().Be(1);
         result["truncated"]!.GetValue<bool>().Should().BeFalse();
@@ -89,11 +87,9 @@ public sealed class LspQueriesTests
     [InlineData(true)]
     public void EmptyResultsHaveTheSameEnvelope(bool array)
     {
-        var result = LspQueries.CompactLocations(
-            array ? new JsonArray() : null,
-            _paths,
-            LspRequest.DefaultResultLimit
-        );
+        JsonNode? locations = array ? new JsonArray() : null;
+
+        var result = locations.ToCompactLocations(_paths, LspRequest.DefaultResultLimit);
 
         result["items"]!.AsArray().Should().BeEmpty();
         result["total"]!.GetValue<int>().Should().Be(0);
@@ -107,9 +103,63 @@ public sealed class LspQueriesTests
     {
         var location = new JsonObject { ["uri"] = value, ["range"] = Range(0, 0) };
 
-        var result = LspQueries.CompactLocations(location, _paths, LspRequest.DefaultResultLimit);
+        var result = location.ToCompactLocations(_paths, LspRequest.DefaultResultLimit);
 
         result["items"]![0]!["file"]!.GetValue<string>().Should().Be(value);
+    }
+
+    [Fact]
+    public void CompactsDiagnosticsToOneBasedStartAndNamedSeverity()
+    {
+        var diagnostic = new JsonObject
+        {
+            ["range"] = Range(3, 7),
+            ["severity"] = 1,
+            ["code"] = "CS0246",
+            ["codeDescription"] = new JsonObject { ["href"] = "https://example.com/CS0246" },
+            ["message"] = "The type could not be found.",
+            ["tags"] = new JsonArray(1),
+        };
+
+        var result = diagnostic.ToCompactDiagnostic();
+
+        JsonNode
+            .DeepEquals(
+                result,
+                JsonNode.Parse(
+                    """{"line":4,"character":8,"severity":"error","code":"CS0246","message":"The type could not be found."}"""
+                )
+            )
+            .Should()
+            .BeTrue(result.ToJsonString());
+    }
+
+    [Fact]
+    public void ConvertsNestedSymbolPositionsToOneBased()
+    {
+        var symbols = new JsonArray(
+            new JsonObject
+            {
+                ["name"] = "Greeter",
+                ["range"] = Range(0, 0),
+                ["selectionRange"] = Range(0, 13),
+                ["children"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["name"] = "Greet",
+                        ["range"] = Range(2, 4),
+                        ["selectionRange"] = Range(2, 18),
+                    }
+                ),
+            }
+        );
+
+        symbols.ToOneBasedPositions();
+
+        var child = symbols[0]!["children"]![0]!;
+        JsonNode.DeepEquals(symbols[0]!["selectionRange"], Range(1, 14)).Should().BeTrue();
+        JsonNode.DeepEquals(child["range"], Range(3, 5)).Should().BeTrue();
+        child["name"]!.GetValue<string>().Should().Be("Greet");
     }
 
     private static JsonObject Location(string file, int line, int character) =>

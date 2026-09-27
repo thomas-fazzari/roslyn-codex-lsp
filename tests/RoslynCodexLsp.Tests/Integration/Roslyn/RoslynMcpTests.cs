@@ -58,10 +58,14 @@ public sealed class RoslynMcpTests
         var diagnostics = await DiagnosticsAsync(workspace);
         diagnostics
             .Should()
-            .Contain(item => Code(item) == "CS0246" && item["severity"]!.GetValue<int>() == 1);
+            .Contain(item =>
+                Code(item) == "CS0246" && item["severity"]!.GetValue<string>() == "error"
+            );
         diagnostics
             .Should()
-            .Contain(item => Code(item) == "CS8603" && item["severity"]!.GetValue<int>() == 2);
+            .Contain(item =>
+                Code(item) == "CS8603" && item["severity"]!.GetValue<string>() == "warning"
+            );
 
         var definitionRequest = await workspace.AtAsync(
             LspAction.Definition,

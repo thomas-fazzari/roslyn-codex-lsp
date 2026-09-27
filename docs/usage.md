@@ -44,11 +44,13 @@ This applies to `definition`, `type_definition`, `implementation` and `reference
 `total` counts occurrences before limiting, and `truncated` reports omitted occurrences.
 Workspace files use relative paths. External and generated locations keep their absolute URI.
 Location links use the target selection start. Use `action=request` for full LSP ranges and metadata.
-Hover, symbols, diagnostic ranges and raw request coordinates keep zero-based LSP positions.
+Hover and symbols keep Roslyn's LSP shapes, with one-based positions.
+Only raw requests keep zero-based LSP positions.
 
 For diagnostics, omit `file` to scan C# files or use a glob such as `src/**/*.cs`.
 `filesChecked` counts scanned files. `filesWithDiagnostics` counts files with diagnostics before limiting.
 `diagnostics` contains only file entries with returned diagnostics. `total` counts all diagnostics found.
+Each diagnostic gives its one-based start `line` and `character`, its `severity`, `code` and `message`.
 `complete` reports a completed scan. When `truncated` is true, omitted files are not necessarily clean.
 `limit` defaults to 50 and accepts 1 to 250. Narrow the query if results are truncated or too large.
 

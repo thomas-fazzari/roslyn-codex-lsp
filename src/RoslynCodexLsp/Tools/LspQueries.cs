@@ -34,8 +34,8 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
 
         var result = await session.RequestAsync(method, parameters, cancellationToken);
         return request.Action is LspAction.Hover
-            ? result
-            : CompactLocations(result, paths, request.Limit);
+            ? result.ToOneBasedPositions()
+            : result.ToCompactLocations(paths, request.Limit);
     }
 
     public async Task<JsonNode?> SymbolsAsync(
@@ -45,25 +45,21 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
     {
         if (request.File is null)
         {
-            return Limit(
-                await session.RequestAsync(
-                    LspMethods.WorkspaceSymbol,
-                    new JsonObject { ["query"] = request.Query ?? string.Empty },
-                    cancellationToken
-                ),
-                request.Limit
+            var symbols = await session.RequestAsync(
+                LspMethods.WorkspaceSymbol,
+                new JsonObject { ["query"] = request.Query ?? string.Empty },
+                cancellationToken
             );
+            return Limit(symbols.ToOneBasedPositions(), request.Limit);
         }
 
         var uri = await session.OpenDocumentAsync(request.File, cancellationToken);
-        return Limit(
-            await session.RequestAsync(
-                LspMethods.TextDocumentDocumentSymbol,
-                Document(uri),
-                cancellationToken
-            ),
-            request.Limit
+        var documentSymbols = await session.RequestAsync(
+            LspMethods.TextDocumentDocumentSymbol,
+            Document(uri),
+            cancellationToken
         );
+        return Limit(documentSymbols.ToOneBasedPositions(), request.Limit);
     }
 
     public async Task<JsonObject> DiagnosticsAsync(
@@ -114,7 +110,7 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
 
                 foreach (var diagnostic in diagnostics.Take(remaining))
                 {
-                    selected.Add(diagnostic?.DeepClone());
+                    selected.Add((JsonNode)diagnostic!.ToCompactDiagnostic());
                 }
 
                 remaining -= selected.Count;
@@ -200,69 +196,6 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
                 yield return candidate;
             }
         }
-    }
-
-    internal static JsonObject CompactLocations(JsonNode? result, WorkspacePaths paths, int limit)
-    {
-        var locations = result switch
-        {
-            null => [],
-            JsonArray array => array,
-            JsonObject location => new JsonArray(location.DeepClone()),
-            _ => throw new InvalidOperationException("Roslyn returned an invalid location result."),
-        };
-        var items = new JsonArray();
-        var groups = new Dictionary<string, JsonArray>(StringComparer.Ordinal);
-        foreach (var location in locations.Take(limit))
-        {
-            var uri =
-                (location?["uri"] ?? location?["targetUri"])?.GetValue<string>()
-                ?? throw new InvalidOperationException("Roslyn returned a location without a URI.");
-            var start =
-                (location?["range"] ?? location?["targetSelectionRange"])?["start"]
-                ?? throw new InvalidOperationException(
-                    "Roslyn returned a location without a position."
-                );
-            var file = LocationFile(uri, paths);
-            if (!groups.TryGetValue(file, out var positions))
-            {
-                positions = [];
-                groups.Add(file, positions);
-                items.Add((JsonNode)new JsonObject { ["file"] = file, ["positions"] = positions });
-            }
-
-            positions.Add(
-                (JsonNode)
-                    new JsonArray(
-                        start["line"]!.GetValue<int>() + 1,
-                        start["character"]!.GetValue<int>() + 1
-                    )
-            );
-        }
-
-        return new JsonObject
-        {
-            ["items"] = items,
-            ["total"] = locations.Count,
-            ["truncated"] = locations.Count > limit,
-        };
-    }
-
-    private static string LocationFile(string value, WorkspacePaths paths)
-    {
-        var uri = new Uri(value);
-        if (!uri.IsFile)
-        {
-            return value;
-        }
-
-        var relative = Path.GetRelativePath(paths.Root, uri.LocalPath);
-        return
-            Path.IsPathRooted(relative)
-            || string.Equals(relative, "..", StringComparison.Ordinal)
-            || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-            ? value
-            : relative.Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private static JsonNode? Limit(JsonNode? result, int limit)

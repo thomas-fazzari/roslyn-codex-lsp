@@ -35,5 +35,5 @@ total counts occurrences before limiting. limit caps occurrences, not files.
 limit defaults to 50 and accepts 1 through 250. Inspect truncated before claiming
 a complete reference or implementation list. No matches returns items: [].
 
-Hover and symbols preserve Roslyn's LSP shapes and zero-based positions.
+Hover and symbols preserve Roslyn's LSP shapes, with one-based positions.
 Use action=request for raw LSP locations, full ranges and location link metadata.

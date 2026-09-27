@@ -27,10 +27,10 @@ result.complete: whether the report is complete.
 result.total: diagnostic count before the output limit.
 result.truncated: whether diagnostics were omitted from the returned arrays.
 
-Diagnostic ranges use zero-based LSP positions. Severity values are:
-1 = error, 2 = warning, 3 = information, 4 = hint.
-Use diagnostic codes, messages and ranges to select the next operation.
-Convert the start line and character to one-based values for code_actions.
+Each diagnostic has this shape:
+{"line":12,"character":9,"severity":"error","code":"CS0246","message":"..."}
+line and character give the one-based start. Pass them unchanged to code_actions.
+severity is error, warning, information or hint.
 
 LIMITS AND VERIFICATION
 -----------------------
