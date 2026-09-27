@@ -2,7 +2,7 @@
 
 ## 0.3.0
 
-- Rename to Roslyn4Clankers, since we now supports Claude Code too.
+- Rename to Roslyn4Clankers, since we now support Claude Code too.
 - Install files in `roslyn-for-clankers`. The installer removes the previous `roslyn-codex-lsp` installation once every installed client uses the new one.
 - Support Claude Code in the installers. They set up every installed client among Codex and Claude Code, or the one selected with `--client` (`-Client` in PowerShell).
 - Add `context` to `navigate` to return the source line of each result.
