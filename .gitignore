@@ -20,11 +20,10 @@
 !/install.sh
 !/install.ps1
 !/bun.lock
+!/lefthook.yml
 
 !/.config/
 !/.config/dotnet-tools.json
-!/.githooks/
-!/.githooks/pre-commit
 !/.github/
 !/.github/dependabot.yml
 !/.github/workflows/

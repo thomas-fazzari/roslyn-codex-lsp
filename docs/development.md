@@ -10,16 +10,16 @@ just check
 
 ## Commands
 
-| Command                 | Purpose                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `just build`            | Build the bridge with analyzers                                  |
-| `just check`            | Check formatting, build documentation and C#, and run unit tests |
-| `just test-integration` | Run explicit tests against the real Roslyn server                |
-| `just format`           | Format task recipes, C#, Markdown and tooling                    |
-| `just tooling::auto`    | Check staged files, or local changes if nothing is staged        |
+| Command                       | Purpose                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `just build`                  | Build the bridge with analyzers                                    |
+| `just check`                  | Check formatting, build documentation and C#, and run unit tests   |
+| `just test-integration`       | Run explicit tests against the real Roslyn server                  |
+| `just format`                 | Format task recipes, C#, Markdown and tooling                      |
+| `just tooling::hooks-install` | Enable Git hooks: format staged files on commit, check before push |
 
 Run `just` to list commands, including the `backend`, `docs`, `tooling` and `ci` modules.
-For example, `just docs::dev` serves the documentation and `just tooling::hooks-install` enables Git hooks.
+For example, `just docs::dev` serves the documentation.
 
 Builds use Debug by default. Run `CONFIGURATION=Release just build` for a release build.
 Stop any bridge process using the build output before rebuilding it.
