@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Report semantic diagnostics for a file created just before the scan, instead of an empty complete report.
+- Mark diagnostics incomplete and list `miscellaneousFiles` when Roslyn has not attached a file to a project.
+
 ## 0.2.0
 
 - Resend only changed files to Roslyn before previewing a rename or code action.
