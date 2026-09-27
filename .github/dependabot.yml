@@ -18,12 +18,13 @@ updates:
         update-types:
           - minor
           - patch
-  - package-ecosystem: bun
-    directory: /
-    schedule:
-      interval: weekly
-    groups:
-      bun-minor-patch:
-        update-types:
-          - minor
-          - patch
+  # Disabled until Dependabot supports bun.lock lockfileVersion 2, which Bun 1.4 writes.
+  # - package-ecosystem: bun
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #   groups:
+  #     bun-minor-patch:
+  #       update-types:
+  #         - minor
+  #         - patch
