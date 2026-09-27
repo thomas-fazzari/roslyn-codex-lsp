@@ -9,14 +9,15 @@ namespace RoslynCodexLsp.Lsp;
 
 internal sealed partial class RoslynSession
 {
+    internal const int MaximumOpenDocuments = 128;
     private const int MaximumDocumentCharacters = 1024 * 1024;
-    private const int MaximumOpenDocuments = 128;
     private const int MaximumWorkspaceFiles = 100_000;
     private const int DocumentReadBufferCharacters = 4096;
     private const int InitialDocumentVersion = 1;
     private const int FileCreated = 1;
     private const int FileChanged = 2;
     private const int FileDeleted = 3;
+
     private readonly Dictionary<string, string> _documents = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _openedOrder = [];
     private readonly Dictionary<string, int> _versions = new(StringComparer.Ordinal);
@@ -40,6 +41,9 @@ internal sealed partial class RoslynSession
         var uri = paths.ToUri(path);
         if (_documents.ContainsKey(path))
         {
+            // Least recently used documents close first, so callers can keep a batch open
+            _openedOrder.Remove(path);
+            _openedOrder.AddLast(path);
             return uri;
         }
 

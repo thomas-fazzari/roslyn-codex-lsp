@@ -84,39 +84,49 @@ internal sealed class LspQueries(RoslynSession session, WorkspacePaths paths)
         var remaining = request.Limit;
         var total = 0;
         var filesWithDiagnostics = 0;
-        foreach (var file in files)
+        foreach (var batch in files.Chunk(RoslynSession.MaximumOpenDocuments))
         {
-            var uri = await session.OpenDocumentAsync(file, cancellationToken);
-            var report = await FileDiagnosticsAsync(uri, cancellationToken);
-            var diagnostics = report["items"] as JsonArray ?? [];
-            total += diagnostics.Count;
-            if (diagnostics.Count == 0)
+            // Each opened document creates a new solution version and discards diagnostics
+            // computed for earlier versions, so open the whole batch before pulling reports
+            var uris = new List<string>(batch.Length);
+            foreach (var file in batch)
             {
-                continue;
+                uris.Add(await session.OpenDocumentAsync(file, cancellationToken));
             }
 
-            filesWithDiagnostics++;
-            if (remaining == 0)
+            foreach (var (file, uri) in batch.Zip(uris))
             {
-                continue;
+                var report = await FileDiagnosticsAsync(uri, cancellationToken);
+                var diagnostics = report["items"] as JsonArray ?? [];
+                total += diagnostics.Count;
+                if (diagnostics.Count == 0)
+                {
+                    continue;
+                }
+
+                filesWithDiagnostics++;
+                if (remaining == 0)
+                {
+                    continue;
+                }
+
+                var selected = new JsonArray();
+
+                foreach (var diagnostic in diagnostics.Take(remaining))
+                {
+                    selected.Add(diagnostic?.DeepClone());
+                }
+
+                remaining -= selected.Count;
+                results.Add(
+                    (JsonNode)
+                        new JsonObject
+                        {
+                            ["file"] = Path.GetRelativePath(paths.Root, file),
+                            ["diagnostics"] = selected,
+                        }
+                );
             }
-
-            var selected = new JsonArray();
-
-            foreach (var diagnostic in diagnostics.Take(remaining))
-            {
-                selected.Add(diagnostic?.DeepClone());
-            }
-
-            remaining -= selected.Count;
-            results.Add(
-                (JsonNode)
-                    new JsonObject
-                    {
-                        ["file"] = Path.GetRelativePath(paths.Root, file),
-                        ["diagnostics"] = selected,
-                    }
-            );
         }
 
         return new JsonObject
