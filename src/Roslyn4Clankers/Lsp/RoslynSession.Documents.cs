@@ -29,6 +29,7 @@ internal sealed partial class RoslynSession
 
     // Fingerprints of the file contents Roslyn received at the last snapshot synchronization
     private readonly Dictionary<string, string> _snapshotFingerprints = new(StringComparer.Ordinal);
+    private bool _snapshotBaselined;
 
     private FileSystemWatcher? _watcher;
     private int _scanRequested;
@@ -116,16 +117,12 @@ internal sealed partial class RoslynSession
         CancellationToken cancellationToken
     )
     {
-        foreach (var (file, fingerprint) in fingerprints)
+        foreach (
+            var file in StaleSnapshotFiles(fingerprints, _snapshotFingerprints, _snapshotBaselined)
+        )
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (
-                !_snapshotFingerprints.TryGetValue(file, out var synchronized)
-                || !string.Equals(synchronized, fingerprint, StringComparison.Ordinal)
-            )
-            {
-                QueueFile(paths.Resolve(file));
-            }
+            QueueFile(paths.Resolve(file));
         }
 
         foreach (var path in _workspaceFiles.Keys)
@@ -142,6 +139,37 @@ internal sealed partial class RoslynSession
         {
             _snapshotFingerprints[file] = fingerprint;
         }
+
+        _snapshotBaselined = true;
+    }
+
+    /// <summary>
+    /// Returns the snapshot files whose fingerprint differs from the one Roslyn received.
+    /// </summary>
+    internal static List<string> StaleSnapshotFiles(
+        IReadOnlyDictionary<string, string> fingerprints,
+        IReadOnlyDictionary<string, string> synchronized,
+        bool baselined
+    )
+    {
+        var stale = new List<string>();
+        foreach (var (file, fingerprint) in fingerprints)
+        {
+            if (synchronized.TryGetValue(file, out var current))
+            {
+                if (!string.Equals(current, fingerprint, StringComparison.Ordinal))
+                {
+                    stale.Add(file);
+                }
+            }
+            else if (baselined)
+            {
+                // Roslyn loaded the first snapshot from disk itself, later removals come from watched changes
+                stale.Add(file);
+            }
+        }
+
+        return stale;
     }
 
     internal void RegisterCapabilities(JsonObject parameters)
