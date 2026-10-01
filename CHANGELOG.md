@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1
+
+- Resolve symbols in files that declare comparison or shift operators. One `operator <` no longer fails every lookup in its file.
+- Treat same-named types in different projects as separate symbols. `ambiguous_symbol` lists them with their `file`, and `symbol` accepts `file` to pick one.
+- Stop resending every workspace file to Roslyn on the first edit after a start or reload.
+- Skip documents over one million characters during synchronization instead of failing every later call.
+- Give `reload`, and applies that create, rename or delete files, the startup timeout instead of the request timeout.
+- Report why Roslyn failed to start or exited, with the end of its standard error, as `io_error` instead of a generic error.
+- Count U+0085, U+2028 and U+2029 as line breaks, as Roslyn does, so edits after them land at the right position.
+- Keep the `proposalId` of previews close to the response size limit instead of returning `result_too_large`.
+- Wait up to 10 seconds for a new file to join its project before reporting diagnostics.
+- Check workspace freshness once per apply, which halves the hashing on large workspaces.
+
 ## 0.3.0
 
 - Rename to Roslyn4Clankers, since we now support Claude Code too.
