@@ -36,7 +36,6 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
     )
     {
         var documents = await PlanAsync(edit, snapshot, cancellationToken);
-        await EnsureCurrentAsync(snapshot, cancellationToken);
         var temporaryFiles = new Dictionary<string, string>(StringComparer.Ordinal);
 
         var completedOperations = new List<AppliedOperation>();

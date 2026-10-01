@@ -232,7 +232,7 @@ public sealed class WorkspaceEditServiceTests : IDisposable
 
         var apply = () => service.ApplyAsync(edit, snapshot, TestCancellation);
 
-        await apply.Should().ThrowAsync<InvalidOperationException>();
+        await apply.Should().ThrowAsync<StaleEditException>();
         await AssertFileTextAsync(first, "class A {}");
         await AssertFileTextAsync(second, "class External {}");
     }
@@ -253,7 +253,7 @@ public sealed class WorkspaceEditServiceTests : IDisposable
                 TestCancellation
             );
 
-        await apply.Should().ThrowAsync<InvalidOperationException>();
+        await apply.Should().ThrowAsync<StaleEditException>();
         await AssertFileTextAsync(target, "class A {}");
     }
 
@@ -310,7 +310,7 @@ public sealed class WorkspaceEditServiceTests : IDisposable
 
         var apply = () => service.ApplyAsync(edit, snapshot, TestCancellation);
 
-        await apply.Should().ThrowAsync<InvalidOperationException>();
+        await apply.Should().ThrowAsync<StaleEditException>();
     }
 
     [Fact]

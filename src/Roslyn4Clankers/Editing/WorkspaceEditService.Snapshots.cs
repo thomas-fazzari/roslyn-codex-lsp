@@ -66,7 +66,10 @@ internal sealed partial class WorkspaceEditService
         return fingerprints;
     }
 
-    private async Task EnsureCurrentAsync(
+    /// <summary>
+    /// Throws <see cref="StaleEditException"/> when any workspace file changed since the snapshot.
+    /// </summary>
+    public async Task EnsureCurrentAsync(
         WorkspaceSnapshot snapshot,
         CancellationToken cancellationToken
     )

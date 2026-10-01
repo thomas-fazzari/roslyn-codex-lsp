@@ -226,7 +226,8 @@ internal sealed class LspChanges(
             );
         }
 
-        await edits.PreviewAsync([], pending.Snapshot, cancellationToken);
+        await edits.EnsureCurrentAsync(pending.Snapshot, cancellationToken);
+
         var action =
             actions[request.ActionIndex.Value]?.DeepClone() as JsonObject
             ?? throw new InvalidOperationException("The code action is invalid.");
