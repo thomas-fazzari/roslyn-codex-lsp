@@ -403,6 +403,51 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task ListsSameNamedTypesOfDifferentProjectsAsCandidatesAsync()
+    {
+        const string applicationProgram = "Application/Program.cs";
+        const string contractsProgram = "Contracts/Program.cs";
+        const string source =
+            "namespace Sample.Application;\n\ninternal static class Program\n{\n    public static void Run() { }\n}\n";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+        await workspace.WriteFileAsync(applicationProgram, source);
+        await workspace.WriteFileAsync(contractsProgram, source);
+        foreach (var file in new[] { applicationProgram, contractsProgram })
+        {
+            await workspace.CallAsync(
+                new LspRequest { Action = LspAction.Diagnostics, File = file }
+            );
+        }
+
+        var ambiguous = await workspace.CallRawAsync(
+            new LspRequest { Action = LspAction.Definition, Symbol = "Program.Run" }
+        );
+        AssertError(ambiguous, SymbolResolver.AmbiguousErrorCode);
+        var candidateFiles = JsonSerializer.SerializeToNode(ambiguous.StructuredContent)!["error"]![
+            "candidates"
+        ]!
+            .AsArray()
+            .Select(candidate => candidate!["file"]!.GetValue<string>());
+        candidateFiles.Should().BeEquivalentTo([applicationProgram, contractsProgram]);
+
+        AssertSingleLocation(
+            await workspace.CallAsync(
+                new LspRequest
+                {
+                    Action = LspAction.Definition,
+                    Symbol = "Program.Run",
+                    File = contractsProgram,
+                }
+            ),
+            contractsProgram
+        );
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task NavigatesAndRenamesBySymbolNameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

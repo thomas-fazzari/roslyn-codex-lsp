@@ -4,6 +4,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json.Nodes;
+using StreamJsonRpc;
 
 namespace Roslyn4Clankers.Lsp;
 
@@ -78,6 +79,32 @@ internal sealed partial class RoslynSession
         _versions.Add(path, InitialDocumentVersion);
 
         return uri;
+    }
+
+    /// <summary>
+    /// Returns the project contexts of an open document, or none when the server lacks the extension.
+    /// </summary>
+    public async Task<JsonArray> ProjectContextsAsync(
+        string uri,
+        CancellationToken cancellationToken
+    )
+    {
+        JsonNode? result;
+        try
+        {
+            result = await RequestAsync(
+                    LspMethods.TextDocumentGetProjectContexts,
+                    new JsonObject { ["_vs_textDocument"] = new JsonObject { ["uri"] = uri } },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (RemoteInvocationException)
+        {
+            return [];
+        }
+
+        return result?["_vs_projectContexts"] as JsonArray ?? [];
     }
 
     public async Task SynchronizeAsync(CancellationToken cancellationToken)

@@ -32,7 +32,7 @@ Arguments are passed directly to each tool:
 `navigate` and `edit` accept a `symbol` name instead of a position, for example `Calculator.Add`.
 The name matches the end of the fully qualified name. A parameter list selects an overload, as in `Calculator.Add(int, int)`.
 A constructor needs its parameter list. An ambiguous name returns the error `ambiguous_symbol` with up to 20 `candidates`.
-Each candidate `symbol` can be sent back unchanged.
+Each candidate `symbol` can be sent back unchanged. When candidates share a name, send the `symbol` with the candidate's `file`.
 
 Paths are relative to the workspace. Input coordinates start at **1**, with characters counted as UTF-16 code units.
 Navigation results group occurrences by file in `items`, with one-based `[line, character]` pairs in `positions`.

@@ -22,41 +22,135 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
     private const int NamespaceKind = 3;
 
     /// <summary>
-    /// Returns the workspace file and one-based position of the declaration named by <paramref name="text"/>.
+    /// Returns the workspace file and one-based position of the declaration named by <paramref name="text"/>,
+    /// searching only <paramref name="file"/> when it is given.
     /// </summary>
     public async Task<SymbolDeclaration> ResolveAsync(
         string text,
+        string? file,
         CancellationToken cancellationToken
     )
     {
         var requested = SymbolName.Parse(text);
+        var files = file is null
+            ? await CandidateFilesAsync(requested, cancellationToken)
+            : [paths.Resolve(file)];
         var declarations = new List<SymbolDeclaration>();
-        foreach (var file in await CandidateFilesAsync(requested, cancellationToken))
+        foreach (var candidate in files)
         {
-            var symbols = await DocumentSymbolsAsync(file, cancellationToken);
-            declarations.AddRange(FindDeclarations(symbols, file, requested));
+            var documentSymbols = await DocumentSymbolsAsync(candidate, cancellationToken);
+            declarations.AddRange(FindDeclarations(documentSymbols, candidate, requested));
         }
 
-        // Partial declarations of one symbol share its name
-        var symbolsByName = declarations
-            .GroupBy(declaration => declaration.Name, StringComparer.Ordinal)
-            .ToList();
-        return symbolsByName.Count switch
+        var symbols = DistinctSymbols(
+            declarations,
+            await ProjectsByFileAsync(declarations, cancellationToken)
+        );
+        if (symbols.Count == 1)
         {
-            1 => symbolsByName[0].First(),
-            0 => throw new SymbolResolutionException(
+            return symbols[0];
+        }
+
+        if (symbols.Count == 0)
+        {
+            throw new SymbolResolutionException(
                 NotFoundErrorCode,
                 $"No declaration matches '{text}'. Use symbols to search by name.",
                 []
-            ),
-            _ => throw new SymbolResolutionException(
-                AmbiguousErrorCode,
-                symbolsByName.Count > MaximumCandidates
-                    ? $"'{text}' matches {symbolsByName.Count} symbols. The first {MaximumCandidates} are listed. Send one candidate symbol, or a more qualified name."
-                    : $"'{text}' matches {symbolsByName.Count} symbols. Send one candidate symbol instead.",
-                Candidates(symbolsByName.Select(group => group.First()))
-            ),
-        };
+            );
+        }
+
+        var sameNames = symbols.DistinctBy(symbol => symbol.Name, StringComparer.Ordinal).Count();
+        var advice =
+            sameNames < symbols.Count
+                ? "Send one candidate symbol with its file."
+                : "Send one candidate symbol instead.";
+        throw new SymbolResolutionException(
+            AmbiguousErrorCode,
+            symbols.Count > MaximumCandidates
+                ? $"'{text}' matches {symbols.Count} symbols. The first {MaximumCandidates} are listed. {advice}"
+                : $"'{text}' matches {symbols.Count} symbols. {advice}",
+            Candidates(symbols)
+        );
+    }
+
+    /// <summary>
+    /// Keeps one declaration per symbol. Partial declarations share a name and a project,
+    /// while same-named types in different projects are separate symbols.
+    /// </summary>
+    internal static List<SymbolDeclaration> DistinctSymbols(
+        IEnumerable<SymbolDeclaration> declarations,
+        IReadOnlyDictionary<string, HashSet<string>> projectsByFile
+    )
+    {
+        var symbols = new List<SymbolDeclaration>();
+        foreach (
+            var group in declarations.GroupBy(
+                declaration => declaration.Name,
+                StringComparer.Ordinal
+            )
+        )
+        {
+            var representatives = new List<SymbolDeclaration>();
+            foreach (var declaration in group)
+            {
+                if (
+                    !representatives.Exists(representative =>
+                        SharesProject(representative.File, declaration.File, projectsByFile)
+                    )
+                )
+                {
+                    representatives.Add(declaration);
+                }
+            }
+
+            symbols.AddRange(representatives);
+        }
+
+        return symbols;
+    }
+
+    // Unknown project membership keeps the previous assumption that same-named declarations are partial
+    private static bool SharesProject(
+        string first,
+        string second,
+        IReadOnlyDictionary<string, HashSet<string>> projectsByFile
+    ) =>
+        string.Equals(first, second, StringComparison.Ordinal)
+        || !projectsByFile.TryGetValue(first, out var firstProjects)
+        || !projectsByFile.TryGetValue(second, out var secondProjects)
+        || firstProjects.Count == 0
+        || secondProjects.Count == 0
+        || firstProjects.Overlaps(secondProjects);
+
+    private async Task<Dictionary<string, HashSet<string>>> ProjectsByFileAsync(
+        List<SymbolDeclaration> declarations,
+        CancellationToken cancellationToken
+    )
+    {
+        var projectsByFile = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var sharedNames = declarations
+            .GroupBy(declaration => declaration.Name, StringComparer.Ordinal)
+            .Where(group =>
+                group.DistinctBy(declaration => declaration.File, StringComparer.Ordinal).Count()
+                > 1
+            );
+        foreach (
+            var file in sharedNames
+                .SelectMany(group => group)
+                .Select(d => d.File)
+                .Distinct(StringComparer.Ordinal)
+        )
+        {
+            var uri = await session.OpenDocumentAsync(file, cancellationToken);
+            var contexts = await session.ProjectContextsAsync(uri, cancellationToken);
+            projectsByFile[file] = contexts
+                .Select(context => context?["_vs_id"]?.GetValue<string>())
+                .OfType<string>()
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        return projectsByFile;
     }
 
     /// <summary>
@@ -214,6 +308,7 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
         [
             .. declarations
                 .OrderBy(declaration => declaration.Name, StringComparer.Ordinal)
+                .ThenBy(declaration => declaration.File, StringComparer.Ordinal)
                 .Take(MaximumCandidates)
                 .Select(declaration => (JsonNode)declaration.ToJson(paths)),
         ];

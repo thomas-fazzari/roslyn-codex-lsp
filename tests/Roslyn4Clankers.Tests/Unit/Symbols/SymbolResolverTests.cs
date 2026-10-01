@@ -86,6 +86,31 @@ public sealed class SymbolResolverTests
         }
     }
 
+    [Theory]
+    [InlineData("app", 1)]
+    [InlineData("lib", 2)]
+    [InlineData(null, 1)]
+    public void SameNamedDeclarationsAreOneSymbolOnlyWithinAProject(
+        string? secondProject,
+        int expected
+    )
+    {
+        var declarations = new[]
+        {
+            new SymbolDeclaration("Program", 5, "/workspace/App/Program.cs", 1, 1),
+            new SymbolDeclaration("Program", 5, "/workspace/Lib/Program.cs", 1, 1),
+        };
+        var projects = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["/workspace/App/Program.cs"] = ["app"],
+            ["/workspace/Lib/Program.cs"] = secondProject is null ? [] : [secondProject],
+        };
+
+        var symbols = SymbolResolver.DistinctSymbols(declarations, projects);
+
+        symbols.Should().HaveCount(expected);
+    }
+
     private static JsonObject Symbol(string name, int kind, int line, params JsonObject[] children)
     {
         var position = new JsonObject { ["line"] = line, ["character"] = 4 };

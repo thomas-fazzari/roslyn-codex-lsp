@@ -312,22 +312,9 @@ internal sealed class LspQueries(
 
     private async Task<bool> IsMiscellaneousAsync(string uri, CancellationToken cancellationToken)
     {
-        JsonNode? result;
-        try
-        {
-            result = await session.RequestAsync(
-                LspMethods.TextDocumentGetProjectContexts,
-                new JsonObject { ["_vs_textDocument"] = new JsonObject { ["uri"] = uri } },
-                cancellationToken
-            );
-        }
-        catch (RemoteInvocationException)
-        {
-            // Servers without this extension cannot report the state, so the file is not held back
-            return false;
-        }
-
-        return result?["_vs_projectContexts"] is JsonArray { Count: > 0 } contexts
+        // Servers without the extension cannot report the state, so the file is not held back
+        var contexts = await session.ProjectContextsAsync(uri, cancellationToken);
+        return contexts.Count > 0
             && contexts.All(context => context?["_vs_is_miscellaneous"]?.GetValue<bool>() is true);
     }
 
@@ -373,24 +360,19 @@ internal sealed class LspQueries(
     {
         if (request.Symbol is not null)
         {
-            if (
-                request
-                is not {
-                    File: null,
-                    Line: null,
-                    Character: null,
-                    EndLine: null,
-                    EndCharacter: null,
-                }
-            )
+            if (request is not { Line: null, Character: null, EndLine: null, EndCharacter: null })
             {
                 throw new ArgumentException(
-                    "Pass either symbol, or a file with a line and character.",
+                    "Pass symbol with an optional file, or a file with a line and character.",
                     nameof(request)
                 );
             }
 
-            var declaration = await resolver.ResolveAsync(request.Symbol, cancellationToken);
+            var declaration = await resolver.ResolveAsync(
+                request.Symbol,
+                request.File,
+                cancellationToken
+            );
             return (declaration.File, declaration.Line, declaration.Character);
         }
 

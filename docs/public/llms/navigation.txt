@@ -10,11 +10,13 @@ symbol matches the end of the fully qualified name: Add, Calculator.Add or
 MyApp.Math.Calculator.Add. A parameter list selects an overload: Calculator.Add(int, int).
 Generic arguments are optional: Box.Put and Box<T>.Put are the same name.
 A constructor needs its parameter list: Calculator(ILogger).
-Partial declarations count as one symbol.
+Partial declarations in one project count as one symbol. Same-named types in
+different projects are separate symbols.
 
 If the name matches several symbols, the error ambiguous_symbol lists up to 20
-candidates. Each candidate symbol can be sent back unchanged. symbol_not_found means
-no declaration matched. Use the symbols tool to search by partial name.
+candidates. Each candidate symbol can be sent back unchanged. When candidates share
+a name, send the symbol with the candidate's file. symbol_not_found means no
+declaration matched. Use the symbols tool to search by partial name.
 
 By position (file is workspace-relative, line and character are one-based,
 character counts UTF-16 code units):
