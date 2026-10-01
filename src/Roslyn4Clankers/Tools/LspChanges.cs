@@ -101,13 +101,7 @@ internal sealed class LspChanges(
         );
         edit = new JsonObject { ["documentChanges"] = changes };
         return await CompleteAsync(
-            new PendingChange(
-                request.Action,
-                snapshot,
-                edit,
-                Command: null,
-                FileRename: parameters
-            ),
+            new PendingChange(request.Action, snapshot, edit, Command: null, RenamesFiles: true),
             request.Apply,
             cancellationToken
         );
@@ -279,16 +273,8 @@ internal sealed class LspChanges(
         var phase = EditApplicationPhase.Notify;
         try
         {
-            if (change.FileRename is not null)
-            {
-                await session.NotifyAsync(
-                    LspMethods.WorkspaceDidRenameFiles,
-                    change.FileRename,
-                    cancellationToken
-                );
-            }
-
-            var filesChanged = change.FileRename is not null || ChangesFileMembership(result);
+            // The reload after a rename replaces a didRenameFiles notification
+            var filesChanged = change.RenamesFiles || ChangesFileMembership(result);
             if (change.Command is not null)
             {
                 phase = EditApplicationPhase.Command;

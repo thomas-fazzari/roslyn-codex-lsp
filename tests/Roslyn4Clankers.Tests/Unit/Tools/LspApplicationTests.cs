@@ -1,6 +1,7 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -133,7 +134,7 @@ public sealed class LspApplicationTests
     }
 
     [Fact]
-    public async Task RenameNotificationFailurePreservesTheCompletedWriteAsync()
+    public async Task ReloadFailureAfterRenamePreservesTheCompletedWriteAsync()
     {
         var root = Directory.CreateTempSubdirectory("roslyn-application-tests-").FullName;
         try
@@ -143,8 +144,13 @@ public sealed class LspApplicationTests
             await File.WriteAllTextAsync(path, "class A {}", cancellationToken);
             var paths = new WorkspacePaths(root);
             var edits = new WorkspaceEditService(paths);
+            // The reload after the rename fails fast on a missing server
             await using var session = new RoslynSession(
-                new BridgeOptions { WorkspaceRoot = root },
+                new BridgeOptions
+                {
+                    WorkspaceRoot = root,
+                    ServerPath = Path.Combine(root, "missing-server"),
+                },
                 paths,
                 NullLogger<RoslynSession>.Instance
             );
@@ -167,14 +173,14 @@ public sealed class LspApplicationTests
                 snapshot,
                 edit,
                 Command: null,
-                FileRename: []
+                RenamesFiles: true
             );
 
             var apply = () => changes.CompleteAsync(pending, apply: true, cancellationToken);
             var failure = await apply.Should().ThrowAsync<EditApplicationException>();
 
-            failure.Which.Phase.Should().Be(EditApplicationPhase.Notify);
-            failure.Which.InnerException.Should().BeOfType<InvalidOperationException>();
+            failure.Which.Phase.Should().Be(EditApplicationPhase.Synchronize);
+            failure.Which.InnerException.Should().BeOfType<Win32Exception>();
             failure.Which.Result["applied"]!.GetValue<bool>().Should().BeTrue();
             failure.Which.Result["fileCount"]!.GetValue<int>().Should().Be(1);
             (await File.ReadAllTextAsync(path, cancellationToken)).Should().Be("class B {}");

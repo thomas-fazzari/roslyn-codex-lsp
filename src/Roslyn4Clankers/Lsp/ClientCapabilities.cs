@@ -20,7 +20,7 @@ internal static class ClientCapabilities
                 "workspaceFolders": true,
                 "applyEdit": true,
                 "didChangeWatchedFiles": { "dynamicRegistration": true },
-                "fileOperations": { "willRename": true, "didRename": true },
+                "fileOperations": { "willRename": true },
                 "workspaceEdit": {
                   "documentChanges": true,
                   "resourceOperations": ["create", "rename", "delete"],

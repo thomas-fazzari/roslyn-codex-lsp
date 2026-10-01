@@ -14,7 +14,7 @@ internal sealed record PendingChange(
     JsonObject? Edit,
     JsonObject? Command,
     JsonArray? Actions = null,
-    JsonObject? FileRename = null
+    bool RenamesFiles = false
 )
 {
     public DateTimeOffset CreatedAt { get; } = DateTimeOffset.UtcNow;

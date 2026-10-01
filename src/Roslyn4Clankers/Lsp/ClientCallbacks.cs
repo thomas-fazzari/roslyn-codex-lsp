@@ -101,26 +101,4 @@ internal sealed partial class ClientCallbacks(
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Roslyn: {Message}")]
     private static partial void LogRoslynMessage(ILogger logger, string message);
-
-    [JsonRpcMethod(
-        LspMethods.TextDocumentPublishDiagnostics,
-        UseSingleObjectParameterDeserialization = true
-    )]
-    public static void PublishDiagnostics(JsonObject parameters)
-    {
-        // Diagnostics are pulled for the synchronized document when the tool requests them
-        _ = parameters;
-    }
-
-    [JsonRpcMethod(LspMethods.Progress, UseSingleObjectParameterDeserialization = true)]
-    public static void Progress(JsonObject parameters) => _ = parameters;
-
-    [JsonRpcMethod(
-        LspMethods.WindowWorkDoneProgressCreate,
-        UseSingleObjectParameterDeserialization = true
-    )]
-    public static void CreateProgress(JsonObject parameters) => _ = parameters;
-
-    [JsonRpcMethod(LspMethods.WorkspaceDiagnosticRefresh)]
-    public static void RefreshDiagnostics() { }
 }

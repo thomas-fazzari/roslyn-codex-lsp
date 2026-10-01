@@ -8,7 +8,6 @@ namespace Roslyn4Clankers.Lsp;
 /// </summary>
 internal static class LspMethods
 {
-    public const string Progress = "$/progress";
     public const string CallHierarchyIncomingCalls = "callHierarchy/incomingCalls";
     public const string CallHierarchyOutgoingCalls = "callHierarchy/outgoingCalls";
     public const string ClientRegisterCapability = "client/registerCapability";
@@ -30,7 +29,6 @@ internal static class LspMethods
     public const string TextDocumentPrepareCallHierarchy = "textDocument/prepareCallHierarchy";
     public const string TextDocumentPrepareRename = "textDocument/prepareRename";
     public const string TextDocumentPrepareTypeHierarchy = "textDocument/prepareTypeHierarchy";
-    public const string TextDocumentPublishDiagnostics = "textDocument/publishDiagnostics";
     public const string TextDocumentRangeFormatting = "textDocument/rangeFormatting";
     public const string TextDocumentReferences = "textDocument/references";
     public const string TextDocumentRename = "textDocument/rename";
@@ -40,13 +38,10 @@ internal static class LspMethods
     public const string TypeHierarchySupertypes = "typeHierarchy/supertypes";
     public const string WindowLogMessage = "window/logMessage";
     public const string WindowShowMessage = "window/showMessage";
-    public const string WindowWorkDoneProgressCreate = "window/workDoneProgress/create";
     public const string WorkspaceApplyEdit = "workspace/applyEdit";
     public const string WorkspaceConfiguration = "workspace/configuration";
     public const string WorkspaceDiagnostic = "workspace/diagnostic";
-    public const string WorkspaceDiagnosticRefresh = "workspace/diagnostic/refresh";
     public const string WorkspaceDidChangeWatchedFiles = "workspace/didChangeWatchedFiles";
-    public const string WorkspaceDidRenameFiles = "workspace/didRenameFiles";
     public const string WorkspaceExecuteCommand = "workspace/executeCommand";
     public const string WorkspaceProjectInitializationComplete =
         "workspace/projectInitializationComplete";
