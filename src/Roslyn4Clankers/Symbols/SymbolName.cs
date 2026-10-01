@@ -1,7 +1,9 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Buffers;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Roslyn4Clankers.Symbols;
@@ -12,15 +14,28 @@ namespace Roslyn4Clankers.Symbols;
 /// </summary>
 internal sealed record SymbolName(ImmutableArray<string> Segments, string? Parameters)
 {
-    private static readonly char[] _brackets = ['(', ')', '[', ']'];
+    private const string OperatorKeyword = "operator";
+    private static readonly SearchValues<char> _operatorCharacters = SearchValues.Create(
+        "<>=!+-*/%&|^~"
+    );
+    private static readonly SearchValues<char> _brackets = SearchValues.Create("()[]");
 
     /// <summary>
     /// Parses a requested name or a Roslyn document symbol name.
     /// A trailing type, as in <c>Value : int</c> or <c>Put(int) : void</c>, is removed.
     /// </summary>
-    public static SymbolName Parse(string text)
+    public static SymbolName Parse(string text) =>
+        TryParse(text, out var name)
+            ? name
+            : throw new ArgumentException($"'{text}' is not a valid symbol name.", nameof(text));
+
+    public static bool TryParse(string text, [NotNullWhen(true)] out SymbolName? result)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        result = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
 
         var name = WithoutType(text);
 
@@ -28,6 +43,11 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         if (name[^1] is ')' or ']')
         {
             var open = MatchingOpen(name);
+            if (open < 0)
+            {
+                return false;
+            }
+
             parameters = Normalize(name[open..]);
             name = name[..open];
         }
@@ -35,12 +55,13 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         var segments = SplitAtTopLevel(name, '.')
             .Select(segment => StripGenericArguments(segment).Trim())
             .ToImmutableArray();
-        if (segments.Any(segment => segment.Length == 0 || segment.IndexOfAny(_brackets) >= 0))
+        if (segments.Any(segment => segment.Length == 0 || segment.AsSpan().ContainsAny(_brackets)))
         {
-            throw new ArgumentException($"'{text}' is not a valid symbol name.", nameof(text));
+            return false;
         }
 
-        return new SymbolName(segments, parameters);
+        result = new SymbolName(segments, parameters);
+        return true;
     }
 
     /// <summary>
@@ -93,19 +114,14 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         var depth = 0;
         for (var index = text.Length - 1; index >= 0; index--)
         {
-            depth += text[index] switch
-            {
-                ')' or ']' or '>' => 1,
-                '(' or '[' or '<' => -1,
-                _ => 0,
-            };
+            depth -= Depth(text, index);
             if (depth == 0)
             {
                 return index;
             }
         }
 
-        throw new ArgumentException($"'{text}' has an unbalanced parameter list.", nameof(text));
+        return -1;
     }
 
     private static int IndexAtTopLevel(string text, string value)
@@ -113,7 +129,7 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         var depth = 0;
         for (var index = 0; index < text.Length; index++)
         {
-            depth += Depth(text[index]);
+            depth += Depth(text, index);
             if (depth == 0 && string.CompareOrdinal(text, index, value, 0, value.Length) == 0)
             {
                 return index;
@@ -129,7 +145,7 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         var start = 0;
         for (var index = 0; index < text.Length; index++)
         {
-            depth += Depth(text[index]);
+            depth += Depth(text, index);
             if (depth == 0 && text[index] == separator)
             {
                 yield return text[start..index];
@@ -140,11 +156,36 @@ internal sealed record SymbolName(ImmutableArray<string> Segments, string? Param
         yield return text[start..];
     }
 
-    private static int Depth(char character) =>
-        character switch
+    private static int Depth(string text, int index)
+    {
+        var depth = text[index] switch
         {
             '(' or '[' or '<' => 1,
             ')' or ']' or '>' => -1,
             _ => 0,
         };
+        return text[index] is '<' or '>' && IsOperatorToken(text, index) ? 0 : depth;
+    }
+
+    // Angle brackets in operator names (e.g. "operator <(Money, Money)") are not generic arguments
+    private static bool IsOperatorToken(string text, int index)
+    {
+        var start = index;
+        while (start > 0 && _operatorCharacters.Contains(text[start - 1]))
+        {
+            start--;
+        }
+
+        var keywordEnd = start;
+        while (keywordEnd > 0 && text[keywordEnd - 1] == ' ')
+        {
+            keywordEnd--;
+        }
+
+        var keywordStart = keywordEnd - OperatorKeyword.Length;
+        return keywordStart >= 0
+            && string.CompareOrdinal(text, keywordStart, OperatorKeyword, 0, OperatorKeyword.Length)
+                == 0
+            && (keywordStart == 0 || !char.IsLetterOrDigit(text[keywordStart - 1]));
+    }
 }

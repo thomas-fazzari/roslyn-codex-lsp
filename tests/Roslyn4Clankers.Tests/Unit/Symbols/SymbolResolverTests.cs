@@ -24,7 +24,9 @@ public sealed class SymbolResolverTests
                 Symbol("Value : T", 7, 6),
                 Symbol("Put(int) : void", 6, 8),
                 Symbol("Put(string) : void", 6, 10),
-                Symbol("Inner", 5, 12, Symbol("Run() : void", 6, 14))
+                Symbol("Inner", 5, 12, Symbol("Run() : void", 6, 14)),
+                Symbol("operator <(Box<T>, Box<T>) : bool", 25, 16),
+                Symbol("Put(int", 6, 18)
             )
         )
     );
@@ -38,6 +40,7 @@ public sealed class SymbolResolverTests
     [InlineData("Box", new[] { "Sample.Application.Box<T>" })]
     [InlineData("Box(T)", new[] { "Sample.Application.Box<T>.Box(T)" })]
     [InlineData("Box.Inner.Run", new[] { "Sample.Application.Box<T>.Inner.Run()" })]
+    [InlineData("operator <", new[] { "Sample.Application.Box<T>.operator <(Box<T>, Box<T>)" })]
     [InlineData("Application", new string[0])]
     public void FindsDeclarationsByQualifiedName(string requested, string[] expected)
     {

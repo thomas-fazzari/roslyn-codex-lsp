@@ -15,6 +15,18 @@ public sealed class SymbolNameTests
     [InlineData("Box<T>", new[] { "Box" }, null)]
     [InlineData("Sample.Application", new[] { "Sample", "Application" }, null)]
     [InlineData("Sample.Box<T>.Put( int )", new[] { "Sample", "Box", "Put" }, "(int)")]
+    [InlineData("operator <(Money, Money) : bool", new[] { "operator <" }, "(Money,Money)")]
+    [InlineData("operator >>(Money, int) : Money", new[] { "operator >>" }, "(Money,int)")]
+    [InlineData(
+        "Money.operator <=(Money, Money)",
+        new[] { "Money", "operator <=" },
+        "(Money,Money)"
+    )]
+    [InlineData(
+        "implicit operator decimal(Money) : decimal",
+        new[] { "implicit operator decimal" },
+        "(Money)"
+    )]
     public void ParsesRoslynAndRequestedNames(string text, string[] segments, string? parameters)
     {
         var name = SymbolName.Parse(text);

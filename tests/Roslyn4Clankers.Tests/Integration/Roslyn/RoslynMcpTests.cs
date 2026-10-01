@@ -359,6 +359,33 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task ResolvesSymbolsInFilesDeclaringComparisonOperatorsAsync()
+    {
+        const string moneyFile = "Application/Money.cs";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+        await workspace.WriteFileAsync(
+            moneyFile,
+            "namespace Sample.Application;\n\npublic readonly record struct Money(decimal Amount)\n{\n"
+                + "    public Money Add(Money other) => new(Amount + other.Amount);\n"
+                + "    public static bool operator <(Money left, Money right) => left.Amount < right.Amount;\n"
+                + "    public static bool operator >(Money left, Money right) => left.Amount > right.Amount;\n}\n"
+        );
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = moneyFile }
+        );
+
+        var definition = await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Definition, Symbol = "Money.Add" }
+        );
+
+        Locations(definition).Should().Equal(moneyFile);
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task NavigatesAndRenamesBySymbolNameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

@@ -141,7 +141,11 @@ internal sealed class SymbolResolver(RoslynSession session, WorkspacePaths paths
                 continue;
             }
 
-            var member = SymbolName.Parse(rawName);
+            if (!SymbolName.TryParse(rawName, out var member))
+            {
+                continue;
+            }
+
             var name = container is null ? member : container.Append(member);
             var display = SymbolName.WithoutType(rawName);
             display = containerDisplay is null ? display : $"{containerDisplay}.{display}";
