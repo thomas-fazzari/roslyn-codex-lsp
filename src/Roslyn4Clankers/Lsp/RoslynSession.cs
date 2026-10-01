@@ -20,6 +20,7 @@ namespace Roslyn4Clankers.Lsp;
 internal sealed partial class RoslynSession(
     BridgeOptions options,
     WorkspacePaths paths,
+    RoslynLauncher launcher,
     ILogger<RoslynSession> logger
 ) : IAsyncDisposable
 {
@@ -29,7 +30,7 @@ internal sealed partial class RoslynSession(
     private const int StderrTailCharacters = 4096;
     private readonly StringBuilder _stderrTail = new();
     private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(3);
-    private Process? _process;
+    private IRoslynServer? _server;
     private JsonRpc? _rpc;
     private SystemTextJsonFormatter? _formatter;
     private HeaderDelimitedMessageHandler? _messageHandler;
@@ -44,7 +45,7 @@ internal sealed partial class RoslynSession(
 
     public bool IsRunning =>
         !_restartRequired
-        && _process is { HasExited: false }
+        && _server is { HasExited: false }
         && _rpc is { IsDisposed: false, Completion.IsCompleted: false };
 
     public void RequireReload() => _restartRequired = true;
@@ -68,7 +69,7 @@ internal sealed partial class RoslynSession(
         timeout.CancelAfter(options.StartupTimeout);
         try
         {
-            StartProcess();
+            StartServer();
             await InitializeAsync(timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -220,23 +221,10 @@ internal sealed partial class RoslynSession(
     private static TaskCompletionSource NewCompletionSource() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    private void StartProcess()
+    private void StartServer()
     {
         _restartRequired = false;
-        var startInfo = new ProcessStartInfo(options.ServerPath)
-        {
-            WorkingDirectory = paths.Root,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        startInfo.ArgumentList.Add("--stdio");
-        startInfo.ArgumentList.Add("--autoLoadProjects");
-        _process =
-            Process.Start(startInfo)
-            ?? throw new InvalidOperationException("The Roslyn process could not be started.");
+        _server = launcher(options, paths);
         _processLifetime = new CancellationTokenSource();
 
         lock (_stderrTail)
@@ -244,19 +232,16 @@ internal sealed partial class RoslynSession(
             _stderrTail.Clear();
         }
 
-        _stderrTask = ReadStderrAsync(_process.StandardError, _processLifetime.Token);
-        StartRpc(_process);
+        _stderrTask = ReadStderrAsync(_server.Error, _processLifetime.Token);
+        StartRpc(_server);
         StartWatching();
     }
 
-    private void StartRpc(Process process)
+    private void StartRpc(IRoslynServer server)
     {
-        var reader = new BoundedPipeReader(
-            PipeReader.Create(process.StandardOutput.BaseStream),
-            MaximumProtocolBytes
-        );
+        var reader = new BoundedPipeReader(PipeReader.Create(server.Output), MaximumProtocolBytes);
         _formatter = CreateFormatter();
-        var writer = PipeWriter.Create(process.StandardInput.BaseStream);
+        var writer = PipeWriter.Create(server.Input);
         _messageHandler = new HeaderDelimitedMessageHandler(writer, reader, _formatter);
         _rpc = new JsonRpc(_messageHandler);
         var callbackMetadata = RpcTargetMetadata.FromShape<ClientCallbacks>();
@@ -322,25 +307,25 @@ internal sealed partial class RoslynSession(
 
     private async Task StopAsync()
     {
-        var process = _process;
+        var server = _server;
         var rpc = _rpc;
         _rpc = null;
-        _process = null;
+        _server = null;
 
         ClearWorkspace();
 
-        if (process is null)
+        if (server is null)
         {
             return;
         }
 
         try
         {
-            await ShutdownAsync(rpc, process).ConfigureAwait(false);
+            await ShutdownAsync(rpc, server).ConfigureAwait(false);
         }
         finally
         {
-            await DisposeProcessResourcesAsync(rpc, process).ConfigureAwait(false);
+            await DisposeProcessResourcesAsync(rpc, server).ConfigureAwait(false);
         }
     }
 
@@ -361,7 +346,7 @@ internal sealed partial class RoslynSession(
         _scanRequested = 0;
     }
 
-    private async Task DisposeProcessResourcesAsync(JsonRpc? rpc, Process process)
+    private async Task DisposeProcessResourcesAsync(JsonRpc? rpc, IRoslynServer server)
     {
         rpc?.Dispose();
         if (_messageHandler is not null)
@@ -385,12 +370,12 @@ internal sealed partial class RoslynSession(
             _stderrTask = null;
         }
 
-        process.Dispose();
+        server.Dispose();
     }
 
-    private async Task ShutdownAsync(JsonRpc? rpc, Process process)
+    private async Task ShutdownAsync(JsonRpc? rpc, IRoslynServer server)
     {
-        if (process.HasExited)
+        if (server.HasExited)
         {
             return;
         }
@@ -419,14 +404,12 @@ internal sealed partial class RoslynSession(
             LogShutdownFailure(logger, exception);
         }
 
-        // After the exit notification, Roslyn leaves its MSBuild build hosts running as orphans.
-        // Killing the tree instead ends them while they are still Roslyn's descendants.
-        if (!process.HasExited)
+        if (!server.HasExited)
         {
-            process.Kill(entireProcessTree: true);
+            server.Kill();
         }
 
-        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+        await server.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     private async Task ReadStderrAsync(StreamReader reader, CancellationToken cancellationToken)

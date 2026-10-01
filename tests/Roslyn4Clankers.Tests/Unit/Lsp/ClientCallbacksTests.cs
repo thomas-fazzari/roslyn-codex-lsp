@@ -107,6 +107,7 @@ public sealed class ClientCallbacksTests : IDisposable
         new(
             new BridgeOptions { WorkspaceRoot = paths.Root },
             paths,
+            RoslynProcess.Start,
             NullLogger<RoslynSession>.Instance
         );
 

@@ -34,6 +34,7 @@ internal static class Program
         );
         builder.Services.AddSingleton(options);
         builder.Services.AddSingleton(new WorkspacePaths(options.WorkspaceRoot));
+        builder.Services.AddSingleton<RoslynLauncher>(RoslynProcess.Start);
         builder.Services.AddSingleton<RoslynSession>();
         builder.Services.AddSingleton<WorkspaceEditService>();
         builder.Services.AddSingleton<SymbolResolver>();

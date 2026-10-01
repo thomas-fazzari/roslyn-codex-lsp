@@ -32,6 +32,7 @@ public sealed class SessionStartupTests : IDisposable
         await using var session = new RoslynSession(
             new BridgeOptions { WorkspaceRoot = _root, ServerPath = server },
             paths,
+            RoslynProcess.Start,
             NullLogger<RoslynSession>.Instance
         );
 
@@ -53,6 +54,7 @@ public sealed class SessionStartupTests : IDisposable
                 ServerPath = Path.Combine(_root, "missing-server"),
             },
             paths,
+            RoslynProcess.Start,
             NullLogger<RoslynSession>.Instance
         );
 

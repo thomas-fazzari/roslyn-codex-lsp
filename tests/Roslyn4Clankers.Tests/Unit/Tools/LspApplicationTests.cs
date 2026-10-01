@@ -152,6 +152,7 @@ public sealed class LspApplicationTests
                     ServerPath = Path.Combine(root, "missing-server"),
                 },
                 paths,
+                RoslynProcess.Start,
                 NullLogger<RoslynSession>.Instance
             );
             var queries = new LspQueries(session, paths, new SymbolResolver(session, paths));
