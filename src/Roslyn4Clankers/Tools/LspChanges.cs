@@ -1,6 +1,7 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 using System.Text.Json.Nodes;
 using Roslyn4Clankers.Editing;
@@ -8,6 +9,7 @@ using Roslyn4Clankers.Lsp;
 
 namespace Roslyn4Clankers.Tools;
 
+[DebuggerDisplay("{_pending.Count} pending proposals")]
 internal sealed class LspChanges(
     RoslynSession session,
     WorkspacePaths paths,

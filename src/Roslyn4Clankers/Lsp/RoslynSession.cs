@@ -15,6 +15,7 @@ namespace Roslyn4Clankers.Lsp;
 /// <summary>
 /// Owns one Roslyn process and its workspace for the lifetime of the MCP host.
 /// </summary>
+[DebuggerDisplay("running = {IsRunning}, open documents = {_documents.Count}")]
 internal sealed partial class RoslynSession(
     BridgeOptions options,
     WorkspacePaths paths,

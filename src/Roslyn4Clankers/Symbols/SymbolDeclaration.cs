@@ -1,6 +1,7 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Roslyn4Clankers.Lsp;
 
@@ -10,6 +11,7 @@ namespace Roslyn4Clankers.Symbols;
 /// A declaration found for a symbol name, at a one-based position in a workspace file.
 /// </summary>
 /// <param name="Name">Qualified name with its parameter list, which resolves back to this symbol.</param>
+[DebuggerDisplay("{Name} at {File}:{Line}:{Character}")]
 internal sealed record SymbolDeclaration(
     string Name,
     int? Kind,

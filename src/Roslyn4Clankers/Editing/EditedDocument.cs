@@ -1,11 +1,13 @@
 // Copyright (C) 2026 thomas-fazzari
 // SPDX-License-Identifier: GPL-3.0-only
 
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 
 namespace Roslyn4Clankers.Editing;
 
+[DebuggerDisplay("{Path}, {Content?.Length ?? 0} bytes, original {Original?.Length ?? 0} bytes")]
 internal sealed class EditedDocument(string path, byte[]? original)
 {
     internal const int MaximumPreviewCharacters = 2_000;

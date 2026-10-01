@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 using System.Collections.Frozen;
+using System.Diagnostics;
 
 namespace Roslyn4Clankers;
 
+[DebuggerDisplay("{Root}")]
 internal sealed class WorkspacePaths(string root)
 {
     internal const int MaximumFileCount = 50_000;
