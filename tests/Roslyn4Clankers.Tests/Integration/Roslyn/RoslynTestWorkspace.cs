@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Client;
@@ -35,7 +36,10 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
     public McpClient Client =>
         _client ?? throw new InvalidOperationException("The MCP client is not connected.");
 
-    public static async Task<RoslynTestWorkspace> CreateAsync(CancellationToken cancellationToken)
+    public static async Task<RoslynTestWorkspace> CreateAsync(
+        CancellationToken cancellationToken,
+        int requestTimeoutSeconds = 30
+    )
     {
         var workspace = new RoslynTestWorkspace(
             Directory.CreateTempSubdirectory("roslyn-for-clankers-tests-"),
@@ -45,7 +49,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
         {
             workspace.CopyFixture();
             await workspace.RestoreAsync().ConfigureAwait(false);
-            await workspace.ConnectAsync().ConfigureAwait(false);
+            await workspace.ConnectAsync(requestTimeoutSeconds).ConfigureAwait(false);
             return workspace;
         }
         catch
@@ -231,7 +235,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
             .Be(0, await output.ConfigureAwait(false) + await error.ConfigureAwait(false));
     }
 
-    private async Task ConnectAsync()
+    private async Task ConnectAsync(int requestTimeoutSeconds)
     {
         var executable = Environment.GetEnvironmentVariable("ROSLYN4CLANKERS_TEST_EXECUTABLE");
         _process = new Process
@@ -246,7 +250,7 @@ internal sealed class RoslynTestWorkspace : IAsyncDisposable
                     BridgeOptions.StartupTimeoutArgument,
                     "60",
                     BridgeOptions.RequestTimeoutArgument,
-                    "30",
+                    requestTimeoutSeconds.ToString(CultureInfo.InvariantCulture),
                 },
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,

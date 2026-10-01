@@ -76,7 +76,7 @@ internal sealed partial class LspTool(
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(
-                session.IsRunning
+                session.IsRunning && !MayRestartServer(request)
                     ? options.RequestTimeout
                     : options.StartupTimeout + options.RequestTimeout
             );
@@ -164,6 +164,9 @@ internal sealed partial class LspTool(
         OperationFailed(logger, action, exception);
         return ApplicationFailure(action, exception, cancellationToken.IsCancellationRequested);
     }
+
+    private static bool MayRestartServer(LspRequest request) =>
+        request.Action is LspAction.Reload || request.Apply;
 
     private static bool IsApplicationRequest(LspRequest request) =>
         request.Apply

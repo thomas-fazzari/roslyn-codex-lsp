@@ -386,6 +386,23 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task ReloadGetsTheStartupBudgetAsync()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(
+            cancellationToken,
+            requestTimeoutSeconds: 1
+        );
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+
+        var reload = await workspace.CallAsync(new LspRequest { Action = LspAction.Reload });
+
+        reload["result"].Should().NotBeNull();
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task NavigatesAndRenamesBySymbolNameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
