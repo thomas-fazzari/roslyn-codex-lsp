@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- Fix Roslyn restarting on every call after a failed apply.
+
 ## 0.3.1
 
 - Resolve symbols in files that declare comparison or shift operators. One `operator <` no longer fails every lookup in its file.
