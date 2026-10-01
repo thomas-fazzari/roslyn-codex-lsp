@@ -32,6 +32,9 @@ internal sealed partial class LspTool(
     internal const string ResultTooLargeErrorCode = "result_too_large";
 
     internal const int MaximumResponseCharacters = 32_000;
+
+    // Leaves room for the action and result wrapper around a preview
+    internal const int PreviewBudgetCharacters = MaximumResponseCharacters - 100;
     private const int MaximumErrorCharacters = 2_000;
 
     private static readonly FrozenSet<string> _readOnlyMethods = new[]

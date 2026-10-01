@@ -14,6 +14,32 @@ namespace Roslyn4Clankers.Tests.Unit.Tools;
 public sealed class LspApplicationTests
 {
     [Fact]
+    public void PreviewNearTheLimitStillFitsInTheResponse()
+    {
+        // Small files fill the budget almost exactly
+        var files = new JsonArray();
+        for (var index = 0; index < 4_000; index++)
+        {
+            files.Add(new JsonObject { ["path"] = "S.cs" });
+        }
+        var preview = new JsonObject
+        {
+            ["proposalId"] = "proposal",
+            ["applied"] = false,
+            ["fileCount"] = files.Count,
+            ["files"] = files,
+        };
+
+        var limited = EditPreview.Limit(preview, LspTool.PreviewBudgetCharacters);
+        var response = LspTool.Response(LspAction.Rename, limited);
+
+        response.IsError.Should().BeFalse();
+        var result = response.StructuredContent!.Value.GetProperty("result");
+        result.GetProperty("proposalId").GetString().Should().Be("proposal");
+        result.GetProperty("filesTruncated").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public void LargeReadOnlyResultsStillReportTheLimit()
     {
         var response = LspTool.Response(

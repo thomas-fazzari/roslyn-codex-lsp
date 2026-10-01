@@ -7,9 +7,10 @@ namespace Roslyn4Clankers.Editing;
 
 internal static class EditPreview
 {
-    internal const int MaximumResponseCharacters = 32_000;
-
-    public static JsonObject Limit(JsonObject preview)
+    /// <summary>
+    /// Drops trailing files, then the command, until the preview fits in <paramref name="budget"/> characters.
+    /// </summary>
+    public static JsonObject Limit(JsonObject preview, int budget)
     {
         var filesTruncated = preview["filesTruncated"]?.GetValue<bool>() ?? false;
         var files = preview["files"]!.AsArray();
@@ -18,13 +19,13 @@ internal static class EditPreview
         preview["files"] = included;
         preview["previewTruncated"] ??= false;
         preview["filesTruncated"] = false;
-        var remaining = MaximumResponseCharacters - Length(preview);
+        var remaining = budget - Length(preview);
         if (remaining < 0 && preview["command"] is not null)
         {
             preview.Remove("command");
             preview["commandPreviewTruncated"] = true;
             preview["previewTruncated"] = true;
-            remaining = MaximumResponseCharacters - Length(preview);
+            remaining = budget - Length(preview);
         }
         for (var index = 0; index < files.Count; index++)
         {

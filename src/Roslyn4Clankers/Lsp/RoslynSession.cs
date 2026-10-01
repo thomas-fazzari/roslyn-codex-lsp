@@ -112,8 +112,9 @@ internal sealed partial class RoslynSession(
         {
             throw new TimeoutException($"Roslyn request '{method}' exceeded the request timeout.");
         }
-        catch (ConnectionLostException exception)
+        catch (Exception exception) when (exception is ConnectionLostException or IOException)
         {
+            // A write to a dead process fails with a broken pipe before the connection loss is noticed
             _restartRequired = true;
             throw new IOException(
                 await WithStderrAsync($"Roslyn exited during '{method}'.", cancellationToken)
@@ -285,7 +286,7 @@ internal sealed partial class RoslynSession(
                 )
                 .ConfigureAwait(false);
         }
-        catch (ConnectionLostException exception)
+        catch (Exception exception) when (exception is ConnectionLostException or IOException)
         {
             throw new IOException(
                 await WithStderrAsync("Roslyn exited during initialization.", cancellationToken)

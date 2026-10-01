@@ -3,6 +3,7 @@
 
 using System.Text.Json.Nodes;
 using Roslyn4Clankers.Editing;
+using Roslyn4Clankers.Tools;
 
 namespace Roslyn4Clankers.Tests.Unit.Editing;
 
@@ -16,10 +17,10 @@ public sealed class EditPreviewTests
             ["fileCount"] = 2,
             ["files"] = new JsonArray(new JsonObject { ["path"] = "Source.cs" }),
             ["filesTruncated"] = true,
-            ["command"] = new string('x', EditPreview.MaximumResponseCharacters),
+            ["command"] = new string('x', LspTool.PreviewBudgetCharacters),
         };
 
-        var limited = EditPreview.Limit(preview);
+        var limited = EditPreview.Limit(preview, LspTool.PreviewBudgetCharacters);
 
         limited["fileCount"]!.GetValue<int>().Should().Be(2);
         limited["filesTruncated"]!.GetValue<bool>().Should().BeTrue();
@@ -35,10 +36,10 @@ public sealed class EditPreviewTests
             ["applied"] = false,
             ["fileCount"] = 1,
             ["files"] = new JsonArray(new JsonObject { ["path"] = "Source.cs" }),
-            ["command"] = new string('x', EditPreview.MaximumResponseCharacters),
+            ["command"] = new string('x', LspTool.PreviewBudgetCharacters),
         };
 
-        var limited = EditPreview.Limit(preview);
+        var limited = EditPreview.Limit(preview, LspTool.PreviewBudgetCharacters);
 
         limited["proposalId"]!.GetValue<string>().Should().Be("proposal");
         limited["files"]!.AsArray().Should().ContainSingle();
@@ -47,6 +48,6 @@ public sealed class EditPreviewTests
         limited
             .ToJsonString(BridgeJsonContext.Default.Options)
             .Length.Should()
-            .BeLessThanOrEqualTo(EditPreview.MaximumResponseCharacters);
+            .BeLessThanOrEqualTo(LspTool.PreviewBudgetCharacters);
     }
 }

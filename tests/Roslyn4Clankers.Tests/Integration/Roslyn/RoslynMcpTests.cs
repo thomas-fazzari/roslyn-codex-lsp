@@ -393,9 +393,9 @@ public sealed class RoslynMcpTests
             cancellationToken,
             requestTimeoutSeconds: 1
         );
-        await workspace.CallAsync(
-            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
-        );
+
+        // The first reload starts Roslyn, the second restarts a running session
+        await workspace.CallAsync(new LspRequest { Action = LspAction.Reload });
 
         var reload = await workspace.CallAsync(new LspRequest { Action = LspAction.Reload });
 

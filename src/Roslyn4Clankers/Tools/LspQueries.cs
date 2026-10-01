@@ -17,7 +17,7 @@ internal sealed class LspQueries(
 )
 {
     private const int MaximumDiagnosticFiles = 1000;
-    private static readonly TimeSpan _projectAttachTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _projectAttachTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _projectAttachPollInterval = TimeSpan.FromMilliseconds(200);
 
     public async Task<JsonNode?> NavigationAsync(

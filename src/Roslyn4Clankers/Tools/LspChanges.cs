@@ -270,7 +270,7 @@ internal sealed class LspChanges(
             var preview = await edits.PreviewAsync(edit, change.Snapshot, cancellationToken);
             preview["proposalId"] = Remember(change);
             preview["command"] = change.Command?.DeepClone();
-            return EditPreview.Limit(preview);
+            return EditPreview.Limit(preview, LspTool.PreviewBudgetCharacters);
         }
 
         var result = await edits.ApplyAsync(edit, change.Snapshot, cancellationToken);

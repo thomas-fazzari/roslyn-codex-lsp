@@ -26,7 +26,7 @@ internal sealed partial class WorkspaceEditService(WorkspacePaths paths)
     {
         var documents = await PlanAsync(edit, snapshot, cancellationToken);
         await EnsureCurrentAsync(snapshot, cancellationToken);
-        return EditPreview.Limit(DescribePreview(documents));
+        return DescribePreview(documents);
     }
 
     public async Task<JsonObject> ApplyAsync(

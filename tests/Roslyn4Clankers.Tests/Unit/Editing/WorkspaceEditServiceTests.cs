@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using Roslyn4Clankers.Editing;
+using Roslyn4Clankers.Tools;
 
 namespace Roslyn4Clankers.Tests.Unit.Editing;
 
@@ -193,7 +194,10 @@ public sealed class WorkspaceEditServiceTests : IDisposable
         var service = CreateService();
         var snapshot = await service.CaptureAsync(TestCancellation);
 
-        var preview = await service.PreviewAsync(edit, snapshot, TestCancellation);
+        var preview = EditPreview.Limit(
+            await service.PreviewAsync(edit, snapshot, TestCancellation),
+            LspTool.PreviewBudgetCharacters
+        );
 
         preview["fileCount"]!.GetValue<int>().Should().Be(fileCount);
         preview["files"]!.AsArray().Count.Should().BeInRange(1, fileCount - 1);
@@ -201,7 +205,7 @@ public sealed class WorkspaceEditServiceTests : IDisposable
         preview
             .ToJsonString(BridgeJsonContext.Default.Options)
             .Length.Should()
-            .BeLessThanOrEqualTo(EditPreview.MaximumResponseCharacters);
+            .BeLessThanOrEqualTo(LspTool.PreviewBudgetCharacters);
         await AssertFileTextAsync(Path.Combine(_root, "Source0.cs"), before);
 
         var applied = await service.ApplyAsync(edit, snapshot, TestCancellation);
