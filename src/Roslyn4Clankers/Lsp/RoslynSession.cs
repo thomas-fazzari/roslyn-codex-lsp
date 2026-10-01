@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -25,6 +26,8 @@ internal sealed partial class RoslynSession(
     internal const int MaximumProtocolBytes = 16 * 1024 * 1024;
 
     private const int StderrBufferCharacters = 2048;
+    private const int StderrTailCharacters = 4096;
+    private readonly StringBuilder _stderrTail = new();
     private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(3);
     private Process? _process;
     private JsonRpc? _rpc;
@@ -109,6 +112,39 @@ internal sealed partial class RoslynSession(
         {
             throw new TimeoutException($"Roslyn request '{method}' exceeded the request timeout.");
         }
+        catch (ConnectionLostException exception)
+        {
+            _restartRequired = true;
+            throw new IOException(
+                await WithStderrAsync($"Roslyn exited during '{method}'.", cancellationToken)
+                    .ConfigureAwait(false),
+                exception
+            );
+        }
+    }
+
+    private async Task<string> WithStderrAsync(string message, CancellationToken cancellationToken)
+    {
+        if (_stderrTask is { } stderr)
+        {
+            // The pipe closes when Roslyn exits, so its last lines arrive shortly after
+            try
+            {
+                await stderr.WaitAsync(_shutdownTimeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // Report what arrived so far
+            }
+        }
+
+        string tail;
+        lock (_stderrTail)
+        {
+            tail = _stderrTail.ToString().Trim();
+        }
+
+        return tail.Length == 0 ? message : $"{message} Roslyn stderr: {tail}";
     }
 
     [UnconditionalSuppressMessage(
@@ -201,6 +237,12 @@ internal sealed partial class RoslynSession(
             Process.Start(startInfo)
             ?? throw new InvalidOperationException("The Roslyn process could not be started.");
         _processLifetime = new CancellationTokenSource();
+
+        lock (_stderrTail)
+        {
+            _stderrTail.Clear();
+        }
+
         _stderrTask = ReadStderrAsync(_process.StandardError, _processLifetime.Token);
         StartRpc(_process);
         StartWatching();
@@ -233,13 +275,26 @@ internal sealed partial class RoslynSession(
             _rpc ?? throw new InvalidOperationException("The Roslyn transport is not started.");
 
         var initialize = ClientCapabilities.Create(paths);
-        var result = await rpc.InvokeWithParameterObjectAsync<JsonObject>(
-                LspMethods.Initialize,
-                initialize,
-                cancellationToken
-            )
-            .ConfigureAwait(false);
-        Capabilities = result["capabilities"]?.AsObject();
+        JsonObject? result;
+        try
+        {
+            result = await rpc.InvokeWithParameterObjectAsync<JsonObject>(
+                    LspMethods.Initialize,
+                    initialize,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (ConnectionLostException exception)
+        {
+            throw new IOException(
+                await WithStderrAsync("Roslyn exited during initialization.", cancellationToken)
+                    .ConfigureAwait(false),
+                exception
+            );
+        }
+
+        Capabilities = result?["capabilities"]?.AsObject();
 
         await NotifyAsync(LspMethods.Initialized, new JsonObject(), cancellationToken)
             .ConfigureAwait(false);
@@ -252,7 +307,13 @@ internal sealed partial class RoslynSession(
         await completed.ConfigureAwait(false);
         if (completed != _initialized.Task)
         {
-            throw new IOException("Roslyn disconnected while loading the workspace.");
+            throw new IOException(
+                await WithStderrAsync(
+                        "Roslyn disconnected while loading the workspace.",
+                        cancellationToken
+                    )
+                    .ConfigureAwait(false)
+            );
         }
 
         _workspaceFiles = ScanWorkspace(cancellationToken);
@@ -380,13 +441,20 @@ internal sealed partial class RoslynSession(
                     return;
                 }
 
-                if (!logger.IsEnabled(LogLevel.Debug))
+                var message = new string(buffer, 0, count);
+                lock (_stderrTail)
                 {
-                    continue;
+                    _stderrTail.Append(message);
+                    if (_stderrTail.Length > StderrTailCharacters)
+                    {
+                        _stderrTail.Remove(0, _stderrTail.Length - StderrTailCharacters);
+                    }
                 }
 
-                var message = new string(buffer, 0, count);
-                LogStderr(logger, message);
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    LogStderr(logger, message);
+                }
             }
         }
         catch (Exception exception)

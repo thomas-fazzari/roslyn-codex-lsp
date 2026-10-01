@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 using System.Collections.Frozen;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -122,14 +123,7 @@ internal sealed partial class LspTool(
         {
             return Failure(request.Action, LspErrorCode, exception.Message, exception.ErrorCode);
         }
-        catch (Exception exception)
-            when (exception
-                    is ArgumentException
-                        or InvalidOperationException
-                        or IOException
-                        or TimeoutException
-                        or JsonException
-            )
+        catch (Exception exception) when (IsReported(exception))
         {
             return ReportFailure(request.Action, exception);
         }
@@ -144,14 +138,29 @@ internal sealed partial class LspTool(
     private CallToolResult ReportFailure(LspAction action, Exception exception)
     {
         OperationFailed(logger, action, exception);
-        var code = exception switch
+        return Failure(action, FailureCode(exception), exception.Message);
+    }
+
+    // Expected failures mapped as structured errors (anything else is a bridge bug)
+    private static bool IsReported(Exception exception) =>
+        exception
+            is ArgumentException
+                or InvalidOperationException
+                or IOException
+                or UnauthorizedAccessException
+                or Win32Exception
+                or RemoteRpcException
+                or TimeoutException
+                or JsonException;
+
+    internal static string FailureCode(Exception exception) =>
+        exception switch
         {
             TimeoutException => TimeoutErrorCode,
-            IOException => IoErrorCode,
+            IOException or UnauthorizedAccessException or Win32Exception => IoErrorCode,
+            RemoteRpcException => LspErrorCode,
             _ => InvalidRequestErrorCode,
         };
-        return Failure(action, code, exception.Message);
-    }
 
     private CallToolResult ReportApplicationFailure(
         LspAction action,
