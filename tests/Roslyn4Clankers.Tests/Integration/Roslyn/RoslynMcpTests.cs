@@ -293,6 +293,32 @@ public sealed class RoslynMcpTests
     }
 
     [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
+    public async Task SkipsOversizedDocumentsDuringSynchronizationAsync()
+    {
+        const string bigFile = "Application/Big.cs";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var workspace = await RoslynTestWorkspace.CreateAsync(cancellationToken);
+        var rename = await workspace.AtAsync(LspAction.Rename, ContractFile, "Greet(");
+        await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+
+        // The watcher reports the file, so synchronization tries to open it
+        await workspace.WriteFileAsync(
+            bigFile,
+            "// " + new string('x', 1_100_000) + "\nnamespace Sample.Application;\n"
+        );
+
+        var preview = await workspace.CallAsync(rename with { NewName = "Welcome" });
+        PreviewFiles(preview).Should().Contain(ConsumerFile);
+
+        var diagnostics = await workspace.CallAsync(
+            new LspRequest { Action = LspAction.Diagnostics, File = ConsumerFile }
+        );
+        diagnostics["result"]!["complete"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact(Explicit = true, Timeout = TestTimeoutMilliseconds)]
     public async Task RefreshesUnopenedFilesWithUnchangedMetadataBeforeRenameAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

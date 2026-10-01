@@ -261,7 +261,19 @@ internal sealed partial class RoslynSession
             return;
         }
 
-        var text = await ReadDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+        string text;
+        try
+        {
+            text = await ReadDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidDataException)
+        {
+            // Roslyn reads the file from disk once the document closes
+            LogOversizedDocument(logger, path);
+            await CloseDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var previous = _documents[path];
         if (string.Equals(previous, text, StringComparison.Ordinal))
         {
@@ -306,7 +318,16 @@ internal sealed partial class RoslynSession
 
         // Watched-file notifications update Roslyn asynchronously
         // Opening/closing the document sends its saved text through the serialized document sync queue
-        await OpenDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await OpenDocumentAsync(path, cancellationToken).ConfigureAwait(false);
+        }
+        catch (InvalidDataException)
+        {
+            LogOversizedDocument(logger, path);
+            return;
+        }
+
         await CloseDocumentAsync(path, cancellationToken).ConfigureAwait(false);
     }
 

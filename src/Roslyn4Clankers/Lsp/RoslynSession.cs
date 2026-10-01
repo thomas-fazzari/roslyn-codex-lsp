@@ -403,4 +403,10 @@ internal sealed partial class RoslynSession(
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Roslyn stderr stream closed.")]
     private static partial void LogStderrClosed(ILogger logger);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Skipped {Path}: the document exceeds the one million UTF-16 code unit limit."
+    )]
+    private static partial void LogOversizedDocument(ILogger logger, string path);
 }

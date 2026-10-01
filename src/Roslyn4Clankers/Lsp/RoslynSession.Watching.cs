@@ -98,7 +98,17 @@ internal sealed partial class RoslynSession
         }
         catch
         {
-            Interlocked.Exchange(ref _scanRequested, 1);
+            // Retry the same paths next time instead of resending the whole workspace
+            if (forceAllChanges)
+            {
+                Interlocked.Exchange(ref _scanRequested, 1);
+            }
+
+            foreach (var path in changedPaths)
+            {
+                _pendingFiles[path] = 0;
+            }
+
             throw;
         }
     }
