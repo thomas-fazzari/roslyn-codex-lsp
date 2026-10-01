@@ -286,17 +286,8 @@ internal sealed partial class RoslynSession
                 new JsonObject
                 {
                     ["textDocument"] = new JsonObject { ["uri"] = uri, ["version"] = version },
-                    ["contentChanges"] = new JsonArray(
-                        new JsonObject
-                        {
-                            ["range"] = new JsonObject
-                            {
-                                ["start"] = new JsonObject { ["line"] = 0, ["character"] = 0 },
-                                ["end"] = EndPosition(previous),
-                            },
-                            ["text"] = text,
-                        }
-                    ),
+                    // A change without a range replaces the whole document
+                    ["contentChanges"] = new JsonArray(new JsonObject { ["text"] = text }),
                 },
                 cancellationToken
             )
@@ -349,31 +340,6 @@ internal sealed partial class RoslynSession
         _documents.Remove(path);
         _versions.Remove(path);
         _openedOrder.Remove(path);
-    }
-
-    internal static JsonObject EndPosition(string text)
-    {
-        var line = 0;
-        var character = 0;
-        for (var index = 0; index < text.Length; index++)
-        {
-            if (text[index] is '\r' or '\n')
-            {
-                if (text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n')
-                {
-                    index++;
-                }
-
-                line++;
-                character = 0;
-            }
-            else
-            {
-                character++;
-            }
-        }
-
-        return new JsonObject { ["line"] = line, ["character"] = character };
     }
 
     private Dictionary<string, FileStamp> ScanWorkspace(CancellationToken cancellationToken)

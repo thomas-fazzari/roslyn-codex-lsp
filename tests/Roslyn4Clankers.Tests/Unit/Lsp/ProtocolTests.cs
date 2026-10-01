@@ -8,19 +8,6 @@ namespace Roslyn4Clankers.Tests.Unit.Lsp;
 
 public sealed class ProtocolTests
 {
-    [Theory]
-    [InlineData("", 0, 0)]
-    [InlineData("a\r\nb\rc\n😀", 3, 2)]
-    [InlineData("😀x", 0, 3)]
-    [InlineData("a\r\n", 1, 0)]
-    public void ReplacementRangeUsesUtf16AndAllLineEndings(string text, int line, int character)
-    {
-        var position = RoslynSession.EndPosition(text);
-
-        position["line"]!.GetValue<int>().Should().Be(line);
-        position["character"]!.GetValue<int>().Should().Be(character);
-    }
-
     [Fact]
     public async Task ReaderRejectsAnOversizedUnconsumedMessageAsync()
     {

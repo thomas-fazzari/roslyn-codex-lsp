@@ -15,6 +15,25 @@ public sealed class WorkspaceEditServiceTests : IDisposable
 
     private static CancellationToken TestCancellation => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData("\u2028")]
+    [InlineData("\u2029")]
+    [InlineData("\u0085")]
+    public async Task ApplyCountsUnicodeLineSeparatorsLikeRoslynAsync(string separator)
+    {
+        var path = Path.Combine(_root, "Source.cs");
+        await File.WriteAllTextAsync(path, $"// a{separator}b\nclass C {{}}\n", TestCancellation);
+        var service = CreateService();
+        var snapshot = await service.CaptureAsync(TestCancellation);
+        var edit = Changes(path, TextEdit(2, 6, 2, 7, "D"));
+
+        await service.ApplyAsync(edit, snapshot, TestCancellation);
+
+        (await File.ReadAllTextAsync(path, TestCancellation))
+            .Should()
+            .Be($"// a{separator}b\nclass D {{}}\n");
+    }
+
     [Fact]
     public async Task ApplyPreservesUtf8BomCrLfAndUtf16PositionsAsync()
     {

@@ -76,7 +76,7 @@ internal static class TextEdits
         var start = 0;
         for (var index = 0; index < source.Length; index++)
         {
-            if (source[index] is not ('\r' or '\n'))
+            if (!IsLineBreak(source[index]))
             {
                 continue;
             }
@@ -93,6 +93,10 @@ internal static class TextEdits
         lines.Add((start, source.Length - start));
         return lines;
     }
+
+    // Roslyn's SourceText line breaks, which LSP positions count
+    internal static bool IsLineBreak(char character) =>
+        character is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029';
 
     private sealed record Change(int Start, int End, string Text, int Index);
 }

@@ -33,6 +33,8 @@ public sealed class TextPreviewTests
     [InlineData("\n")]
     [InlineData("\r\n")]
     [InlineData("\r")]
+    [InlineData("\u2028")]
+    [InlineData("\u0085")]
     public void SeparatedChangesHaveSeparateRanges(string newline)
     {
         var lines = Enumerable

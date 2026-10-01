@@ -192,7 +192,7 @@ internal static class TextPreview
         var character = Math.Max(1, origin.Character);
         for (var index = 0; index < offset; index++)
         {
-            if (text[index] is '\r' or '\n')
+            if (TextEdits.IsLineBreak(text[index]))
             {
                 if (text[index] == '\r' && index + 1 < offset && text[index + 1] == '\n')
                 {
