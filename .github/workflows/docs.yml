@@ -7,10 +7,7 @@ on:
       - docs/**
       - package.json
       - bun.lock
-      - justfile
-      - eng/common.just
-      - eng/docs.just
-      - eng/tooling.just
+      - mise.toml
       - .github/workflows/docs.yml
   workflow_dispatch:
 
@@ -26,18 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: extractions/setup-just@v4
+      - uses: jdx/mise-action@v5.0.1
         with:
-          just-version: 1.58.0
-      - uses: actions/setup-node@v7.0.0
-        with:
-          node-version: 26.8.1
-      - uses: oven-sh/setup-bun@v2.2.0
-        with:
-          bun-version: 1.4.2
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: bun
       - uses: actions/configure-pages@v6.0.0
-      - run: just tooling::install
-      - run: just docs::build
+      - run: mise run tooling:install
+      - run: mise run docs:build
       - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: docs/.vitepress/dist

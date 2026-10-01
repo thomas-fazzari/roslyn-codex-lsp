@@ -4,6 +4,8 @@
     "csharpier.csharpier-vscode",
     "EditorConfig.EditorConfig",
     "vscode.json-language-features",
-    "oxc.oxc-vscode"
+    "oxc.oxc-vscode",
+    "tamasfe.even-better-toml",
+    "hverlin.mise-vscode"
   ]
 }

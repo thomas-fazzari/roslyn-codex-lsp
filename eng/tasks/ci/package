@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Packages the native executable into a release archive"
 set -euo pipefail
 
 mkdir -p artifacts/package artifacts/release

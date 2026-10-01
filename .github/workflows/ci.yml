@@ -23,17 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: extractions/setup-just@v4
+      - uses: jdx/mise-action@v5.0.1
         with:
-          just-version: 1.58.0
-      - uses: actions/setup-dotnet@v6.0.0
-        with:
-          global-json-file: global.json
-      - uses: oven-sh/setup-bun@v2.2.0
-        with:
-          bun-version: 1.4.2
-      - run: just install
-      - run: just backend::lint docs::check tooling::check
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: mise run install
+      - run: mise run lint
 
   native:
     name: Native AOT (${{ matrix.rid }})
@@ -65,30 +59,31 @@ jobs:
       RUNTIME_ID: ${{ matrix.rid }}
       EXECUTABLE: ${{ matrix.executable }}
       CONFIGURATION: Release
+      # Tasks are written for Bash. Git Bash is preinstalled on Windows runners.
+      MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: bash -c
+      MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS: bash
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: extractions/setup-just@v4
+      - uses: jdx/mise-action@v5.0.1
         with:
-          just-version: 1.58.0
-      - uses: actions/setup-dotnet@v6.0.0
-        with:
-          global-json-file: global.json
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install_args: dotnet
       - name: Install native build tools
-        run: bash eng/ci/setup.sh
+        run: mise run ci:setup
       - name: Set binary version
-        run: just ci::version
+        run: mise run ci:version
       - name: Run unit tests
-        run: just test
+        run: mise run test
       - name: Publish native executable
-        run: just backend::publish
+        run: mise run backend:publish
       - name: Install Roslyn for integration tests
-        run: just ci::roslyn
+        run: mise run ci:roslyn
       - name: Test native executable against Roslyn
         env:
           ROSLYN4CLANKERS_TEST_EXECUTABLE: ${{ github.workspace }}/artifacts/native/${{ matrix.executable }}
-        run: just test-integration
+        run: mise run test-integration
       - name: Package native executable
-        run: just ci::package
+        run: mise run ci:package
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: native-${{ matrix.rid }}
@@ -105,9 +100,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: extractions/setup-just@v4
+      - uses: jdx/mise-action@v5.0.1
         with:
-          just-version: 1.58.0
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          install: false
       - uses: actions/download-artifact@v8.0.1
         with:
           pattern: native-*
@@ -118,4 +114,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: just ci::release
+        run: mise run ci:release

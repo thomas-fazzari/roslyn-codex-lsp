@@ -1,0 +1,134 @@
+min_version = "2026.9.0"
+
+[tools]
+dotnet = "10.0.400"
+"dotnet:csharpier" = "1.3.0"
+bun = "1.4.2"
+lefthook = "2.1.14"
+
+[env]
+_.file = ".env"
+
+[task_config]
+includes = ["eng/tasks"]
+
+[tasks.default]
+description = "Same as check"
+depends = ["check"]
+
+[tasks.install]
+description = "Restores tooling and .NET dependencies"
+depends = ["tooling:install", "backend:install"]
+
+[tasks.build]
+description = "Builds the .NET solution"
+depends = ["backend:build"]
+
+[tasks.lint]
+description = "Checks C# formatting, Markdown, tooling formatting, Git hooks and build analyzers"
+depends = ["backend:lint", "docs:check", "tooling:format-check", "hooks:check", "backend:build"]
+
+[tasks.check]
+description = "All formatting, documentation, build and unit test checks"
+depends = ["lint", "test"]
+
+[tasks.format]
+description = "Formats C#, Markdown and tooling files"
+depends = ["backend:format", "docs:format", "tooling:format"]
+
+[tasks.test]
+description = "Builds and runs the unit tests"
+depends = ["backend:test"]
+
+[tasks.test-integration]
+description = "Builds and runs the explicit tests against the real Roslyn server"
+depends = ["backend:test-integration"]
+
+[tasks."hooks:install"]
+description = "Installs the Git hooks"
+run = "lefthook install"
+
+[tasks."hooks:check"]
+description = "Validates the Git hook configuration"
+run = "lefthook validate"
+
+[tasks."tooling:install"]
+description = "Restores the Bun dependencies"
+run = "bun install --frozen-lockfile"
+
+[tasks."tooling:format"]
+description = "Formats tooling files"
+run = "bun --bun run tooling:format"
+
+[tasks."tooling:format-check"]
+description = "Checks tooling formatting"
+run = "bun --bun run tooling:format:check"
+
+[tasks."backend:install"]
+description = "Restores the .NET dependencies"
+run = "dotnet restore Roslyn4Clankers.slnx"
+
+[tasks."backend:build"]
+description = "Builds the .NET solution (CONFIGURATION defaults to Debug)"
+run = 'dotnet build Roslyn4Clankers.slnx --configuration "${CONFIGURATION:-Debug}"'
+
+[tasks."backend:lint"]
+description = "Checks C# formatting"
+run = "csharpier check ."
+
+[tasks."backend:format"]
+description = "Formats C# files"
+run = "csharpier format ."
+
+[tasks."backend:test"]
+description = "Runs the unit tests, with extra arguments passed to dotnet test"
+depends = ["backend:build"]
+run = 'dotnet test --solution Roslyn4Clankers.slnx --configuration "${CONFIGURATION:-Debug}" --no-build --no-restore -- --explicit off'
+
+[tasks."backend:test-integration"]
+description = "Runs the explicit tests against the real Roslyn server"
+depends = ["backend:build"]
+run = 'dotnet test --solution Roslyn4Clankers.slnx --configuration "${CONFIGURATION:-Debug}" --no-build --no-restore -- --explicit only --filter-class Roslyn4Clankers.Tests.Integration.Roslyn.RoslynMcpTests'
+
+[tasks."backend:publish"]
+description = "Publishes the native bridge in Release mode for RUNTIME_ID (APP_VERSION and NATIVE_OUTPUT are optional)"
+run = """
+test -n "${RUNTIME_ID:-}" || { echo 'Set RUNTIME_ID, for example osx-arm64.' >&2; exit 1; }
+dotnet publish src/Roslyn4Clankers/Roslyn4Clankers.csproj --configuration Release --runtime "$RUNTIME_ID" -p:Version="${APP_VERSION:-0.0.0-dev}" --output "${NATIVE_OUTPUT:-artifacts/native}"
+"""
+
+[tasks."backend:copyrights"]
+description = "Updates copyright headers"
+run = "bun eng/scripts/copyrights.mjs"
+
+[tasks."backend:copyrights-check"]
+description = "Checks copyright headers"
+run = "bun eng/scripts/copyrights.mjs --check"
+
+[tasks."docs:dev"]
+description = "Serves the documentation with live updates"
+run = "bun --bun run docs:dev"
+
+[tasks."docs:build"]
+description = "Builds the static documentation site"
+run = "bun --bun run docs:build"
+
+[tasks."docs:preview"]
+description = "Serves the built documentation locally"
+run = "bun --bun run docs:preview"
+
+[tasks."docs:lint"]
+description = "Lints Markdown files"
+run = "bun --bun run docs:lint"
+
+[tasks."docs:format"]
+description = "Formats Markdown"
+run = "bun --bun run docs:format"
+
+[tasks."docs:format-check"]
+description = "Checks Markdown formatting"
+run = "bun --bun run docs:format:check"
+
+[tasks."docs:check"]
+description = "Markdown lint, formatting and the documentation build"
+depends = ["docs:lint", "docs:format-check", "docs:build"]

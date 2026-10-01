@@ -4,7 +4,7 @@ pre-commit:
       glob:
         - "{src,tests}/**/*.{cs,csx,csproj,props,targets,xml,config,resx}"
         - "*.{props,targets,slnx}"
-      run: dotnet tool run csharpier format {staged_files}
+      run: csharpier format {staged_files}
       stage_fixed: true
 
     - name: markdown
@@ -17,11 +17,11 @@ pre-commit:
             stage_fixed: true
 
     - name: json-format
-      glob: "{*.json,.*.json,.*.jsonc,.config/**/*.json,.vscode/**/*.json,eng/**/*.mjs}"
+      glob: "{*.json,.*.json,.*.jsonc,.vscode/**/*.json,eng/**/*.mjs}"
       run: bun run oxfmt --write {staged_files}
       stage_fixed: true
 
 pre-push:
   jobs:
     - name: check
-      run: just tooling::check backend::lint backend::test
+      run: "mise run hooks:check ::: tooling:format-check ::: backend:lint ::: backend:test"

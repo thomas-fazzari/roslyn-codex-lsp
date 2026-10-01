@@ -4,13 +4,12 @@
 # Except this
 !/.gitignore
 !/.editorconfig
-!/.csharpierignore
 !/.markdownlint-cli2.jsonc
 !/.oxfmtrc.json
 !/AGENTS.md
 !/README.md
 !/CHANGELOG.md
-!/justfile
+!/mise.toml
 !/CodeMetricsConfig.txt
 !/Directory.Build.props
 !/Directory.Packages.props
@@ -22,8 +21,6 @@
 !/bun.lock
 !/lefthook.yml
 
-!/.config/
-!/.config/dotnet-tools.json
 !/.github/
 !/.github/dependabot.yml
 !/.github/workflows/
@@ -32,6 +29,7 @@
 !/.vscode/
 !/.vscode/extensions.json
 !/.vscode/settings.json
+!/.vscode/tasks.json
 
 !/src/
 !/src/**
@@ -59,6 +57,7 @@
 **/*.suo
 **/.env
 **/.env.*
+/mise.local.toml
 
 !/LICENSE
 !/.env.copyme

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Publishes the tested release archives to GitHub"
 set -euo pipefail
 
 cd artifacts

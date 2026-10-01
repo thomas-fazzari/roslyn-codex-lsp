@@ -12,19 +12,19 @@ namespace Roslyn4Clankers.Tests.Integration.Roslyn;
 
 /// <summary>
 /// Tests the MCP bridge against the real Roslyn language server in temporary workspaces.
-/// These tests are explicit and are excluded from just test and just check.
+/// These tests are explicit and are excluded from mise run test and mise run check.
 /// </summary>
 /// <remarks>
-/// Requires dotnet and roslyn-language-server on PATH. To add local executable directories,
-/// copy .env.copyme to .env and set EXTRA_PATH. From the repository root, run:
+/// Requires roslyn-language-server on PATH, or its path in ROSLYN4CLANKERS_TEST_SERVER.
+/// Copy .env.copyme to .env to set it locally. From the repository root, run:
 /// <code>
-/// just test-integration
+/// mise run test-integration
 /// </code>
 /// The command builds the project. The tests restore their fixtures, launch Roslyn,
 /// and delete their temporary workspaces when finished.
 /// To test a published native bridge, set its absolute executable path:
 /// <code>
-/// ROSLYN4CLANKERS_TEST_EXECUTABLE=/absolute/path/Roslyn4Clankers just test-integration
+/// ROSLYN4CLANKERS_TEST_EXECUTABLE=/absolute/path/Roslyn4Clankers mise run test-integration
 /// </code>
 /// </remarks>
 public sealed class RoslynMcpTests

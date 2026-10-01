@@ -17,7 +17,7 @@ Keep the bridge standalone and usable from any MCP client. Installers set up Cod
 - Add behavior tests for concrete changes, not dummy tests for project setup.
 - Assert error types and structured results instead of exact diagnostic prose.
 - Reuse production constants in tests through `internal` access and `InternalsVisibleTo`.
-- Run `just check` for C# or tooling changes and `just docs::check` for documentation changes.
+- Run `mise run check` for C# or tooling changes and `mise run docs:check` for documentation changes.
 - Distinguish simulated protocol tests from real Roslyn and client validation.
 
 ## Writing
@@ -27,4 +27,4 @@ Write `docs/` for humans and keep agent workflow rules here.
 - Use short sentences and common words.
 - Expand uncommon abbreviations on first use.
 - Avoid semicolons, em dashes, filler and repeated facts.
-- Use `just docs::format` for Markdown formatting.
+- Use `mise run docs:format` for Markdown formatting.
